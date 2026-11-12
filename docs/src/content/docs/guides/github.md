@@ -5,7 +5,7 @@ description: Commit notes to your repository, written by the collaborators who s
 
 With the GitHub storage, notes are JSON files on a branch of your repository (default `annotations`). The branch is created from the default branch on the first save, so notes never touch `main` and never trigger a deploy. Each commit has the reader as author.
 
-Readers sign in with GitHub. By default only **collaborators** of the repository may write.
+Readers sign in with GitHub. By default only people with **write access** to the repository (write, maintain or admin) may annotate; read or triage access is not enough.
 
 ## 1. Create a GitHub OAuth app
 

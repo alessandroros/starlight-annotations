@@ -55,8 +55,8 @@ export interface GitHubAuthOptions {
   /** A long random string that signs the session cookie. */
   sessionSecret: string;
   /**
-   * Who may write. `"collaborators"` (default) checks the reader's permission on `repo`
-   * with `token`. `"anyone"` accepts every GitHub user.
+   * Who may write. `"collaborators"` (default) accepts people with write, maintain or admin
+   * access to `repo`, checked with `token`. `"anyone"` accepts every GitHub user.
    */
   writers?: 'collaborators' | 'anyone' | string[] | ((profile: { login: string; id: number }) => boolean | Promise<boolean>);
   repo?: string;

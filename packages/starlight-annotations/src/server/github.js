@@ -107,8 +107,11 @@ export function githubAuth({ clientId, clientSecret, sessionSecret, repo, token,
     if (writers === 'anyone') return true;
     if (Array.isArray(writers)) return writers.map((login) => login.toLowerCase()).includes(profile.login.toLowerCase());
     if (typeof writers === 'function') return Boolean(await writers(profile));
+    // Only people who can push to the repository. `permission` is the legacy
+    // level: maintain counts as write, triage as read. On a public repository
+    // GitHub answers "read" for anyone, so read access is not enough.
     const permission = await api(token, `/repos/${repo}/collaborators/${encodeURIComponent(profile.login)}/permission`, { allow404: true });
-    return Boolean(permission && permission.permission !== 'none');
+    return permission?.permission === 'admin' || permission?.permission === 'write';
   }
 
   async function hmac(value) {

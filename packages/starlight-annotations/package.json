@@ -1,0 +1,68 @@
+{
+  "name": "starlight-annotations",
+  "version": "0.1.0",
+  "description": "Let readers highlight text and leave notes on Starlight docs. Notes are JSON files committed to your Git repository.",
+  "license": "MIT",
+  "author": "Alessandro Rosa",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alessandroros/starlight-annotations.git",
+    "directory": "packages/starlight-annotations"
+  },
+  "homepage": "https://github.com/alessandroros/starlight-annotations",
+  "bugs": "https://github.com/alessandroros/starlight-annotations/issues",
+  "keywords": [
+    "withastro",
+    "starlight",
+    "starlight-plugin",
+    "astro",
+    "annotations",
+    "comments",
+    "documentation",
+    "web-annotation"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./server": {
+      "types": "./server.d.ts",
+      "default": "./src/server/index.js"
+    },
+    "./server/node": {
+      "types": "./server-node.d.ts",
+      "default": "./src/server/node.js"
+    },
+    "./client": "./src/client/annotations.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "server.d.ts",
+    "server-node.d.ts",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@astrojs/starlight": ">=0.30.0"
+  },
+  "dependencies": {
+    "micromark": "^4.0.3",
+    "micromark-extension-gfm": "^3.0.0"
+  },
+  "devDependencies": {
+    "vitest": "~5.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

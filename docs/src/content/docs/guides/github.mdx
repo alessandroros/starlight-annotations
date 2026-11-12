@@ -1,0 +1,162 @@
+---
+title: Store notes on GitHub
+description: Step by step, from an empty repository to the first note committed by a reader.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+With the GitHub storage, every note is a commit. Notes are JSON files on a branch of their own (default `annotations`), so they never touch your default branch and never trigger a deploy. Readers sign in with GitHub, and only people with **write access** to the repository may annotate.
+
+You need three things. This page walks through each one.
+
+| What | Who uses it | Secret? |
+|---|---|---|
+| **OAuth app** (client ID + client secret) | The reader's browser, to sign in with GitHub | The client secret is |
+| **Server token** | Your server, to read and commit notes and to check who has write access | Yes |
+| **Session secret** | Your server, to sign the session cookie | Yes |
+
+## Before you start: which repository?
+
+Notes go to **one** repository, set with the `repo` option. Choose the one where **the people who will annotate have write access**:
+
+- Your team reviews its own docs: the docs repository itself.
+- A client or another team reviews: their repository, so the feedback stays with them and they need no access to yours.
+
+<Aside title="Mirrors and several remotes">
+If the same docs are pushed to several repositories, sync only your docs branch. The `annotations` branch lives in the one repository named in `repo`; do not push it anywhere else. Notes find their place by the quoted text, not by commit, so they keep working as the docs move on.
+</Aside>
+
+## 1. Create the OAuth app
+
+The OAuth app is how readers sign in. It asks for **no permission**: the plugin only reads who signed in.
+
+<Steps>
+
+1. Open the form for a new OAuth app:
+
+   - for your account: [github.com/settings/applications/new](https://github.com/settings/applications/new)
+   - for an organization: *Organization settings → Developer settings → OAuth Apps → New OAuth App*
+
+   Either works. An app owned by the organization does not depend on one person's account.
+
+2. Fill in the form:
+
+   | Field | Value |
+   |---|---|
+   | Application name | Something readers recognize, e.g. `Acme docs – annotations` |
+   | Homepage URL | Your docs site, e.g. `https://docs.example.com` |
+   | Authorization callback URL | `https://docs.example.com/_annotations/callback` |
+   | Allow wildcard matching | Off |
+   | Enable Device Flow | Off |
+   | Expire user access tokens | Either; the plugin uses the reader's token once, at sign-in |
+
+   If your site has a [`base`](https://docs.astro.build/en/reference/configuration-reference/#base), put it before `/_annotations`: `https://example.com/docs/_annotations/callback`. The URL must match character for character.
+
+3. Press **Register application**. Copy the **Client ID**: it is not secret and goes in your configuration.
+
+4. Press **Generate a new client secret** and copy it right away: GitHub shows it only once. Store it as a secret of your host (see [step 4](#4-configure-your-server)), never in the repository or in chat.
+
+</Steps>
+
+## 2. Create the server token
+
+The server reads and commits notes with this token, and asks GitHub whether the person signing in has write access. Use a **fine-grained personal access token** limited to one repository.
+
+<Steps>
+
+1. Open [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new).
+
+2. Fill in the form:
+
+   | Field | Value |
+   |---|---|
+   | Token name | e.g. `docs-annotations` |
+   | Description | e.g. *Commits reader notes to the annotations branch* |
+   | Resource owner | **The owner of the notes repository**: your account, or the organization |
+   | Expiration | Up to a year. Set a reminder: when it expires, saving notes stops until you replace it |
+   | Repository access | *Only select repositories* → the notes repository |
+   | Repository permissions | **Contents: Read and write**. *Metadata: Read-only* is added for you |
+
+3. Press **Generate token** and copy it. Like the client secret, it goes into your host's secrets.
+
+4. **If the resource owner is an organization**, check the token in your token list. If it shows **Pending**, the organization requires an owner to approve it, and the token cannot reach the repository until then. Ask an owner to approve it at:
+
+   `https://github.com/organizations/<org>/settings/personal-access-token-requests`
+
+   Approval takes effect at once; you do not need a new token or a new deploy.
+
+</Steps>
+
+<Aside type="caution" title="Organization repositories">
+A fine-grained token can target an organization only if you are a **member** of it. Outside collaborators cannot. In that case, ask a member to create the token, or keep the notes in a repository you own.
+</Aside>
+
+## 3. Create the session secret
+
+Any long random string. It signs the session cookie, so a reader stays signed in for 30 days without the server keeping any state.
+
+```sh
+openssl rand -hex 32
+```
+
+Changing it later signs everybody out.
+
+## 4. Configure your server
+
+Pass everything to the handler. With environment variables:
+
+```js
+import { createAnnotationsHandler, github } from 'starlight-annotations/server';
+
+const handle = createAnnotationsHandler(
+  github({
+    repo: env.ANNOTATIONS_REPO, // 'owner/name'
+    token: env.GITHUB_TOKEN,
+    clientId: env.GITHUB_CLIENT_ID,
+    clientSecret: env.GITHUB_CLIENT_SECRET,
+    sessionSecret: env.ANNOTATIONS_SECRET,
+  }),
+);
+```
+
+| Variable | Kind | Value |
+|---|---|---|
+| `ANNOTATIONS_REPO` | plain | `owner/name` of the notes repository |
+| `GITHUB_CLIENT_ID` | plain | From step 1 |
+| `GITHUB_CLIENT_SECRET` | **secret** | From step 1 |
+| `GITHUB_TOKEN` | **secret** | From step 2 |
+| `ANNOTATIONS_SECRET` | **secret** | From step 3 |
+
+Where the handler goes depends on your host: see [Cloudflare Workers](/starlight-annotations/guides/cloudflare/) or [other hosts](/starlight-annotations/guides/other-hosts/). Options such as `branch`, `writers` and `commitMessage` are in the [server reference](/starlight-annotations/reference/server/).
+
+Until every value is set, keep the handler from answering (or answer 503): the pages then show no annotation UI, so you can deploy the plugin before the server is ready.
+
+## 5. Check it works
+
+<Steps>
+
+1. Open your published docs, select some text and press **Annotate**.
+2. Press **Sign in with GitHub** and authorize the app. You come back to the same page, signed in.
+3. Write a note and save it.
+4. On GitHub, the repository now has an `annotations` branch, created from the default branch, with a commit by you that adds `annotations/<page>.json`.
+
+</Steps>
+
+From then on, every note, reply, resolve and delete is a commit on that branch. Review them like any other history: `git log annotations`, or the branch on GitHub.
+
+## Troubleshooting
+
+| What you see | Why | What to do |
+|---|---|---|
+| **"&lt;login&gt; may not annotate these docs"** after signing in | Either the person has no write access to the repository, **or the server token cannot see the repository**: it is still *Pending* approval, its resource owner is wrong, or the repository is not selected | Check the person's role on the repository. Then check the token in your token list: owner, selected repository, *Pending* badge |
+| A **redirect_uri** error on GitHub instead of the authorize page | The callback URL in the OAuth app does not match the site | Make it exactly `https://<site><base>/_annotations/callback` |
+| **"The sign-in link expired. Try again."** | The sign-in took more than 10 minutes, or cookies are blocked | Sign in again; allow cookies for the site |
+| **No Annotate button** on the published site | The API answers an error or nothing, so the UI stays hidden | Open `/_annotations/api?page=index`: 503 means a setting is missing, 404 means the handler is not mounted at that path |
+| **"The annotation service failed"** when saving | GitHub refused the write: the token expired, or lost *Contents: Read and write* | Check the server logs for the GitHub status, renew the token and update the secret |
+
+## Rotating and revoking
+
+- **Token expired or leaked**: create a new one (step 2), replace the `GITHUB_TOKEN` secret, delete the old one. Readers stay signed in.
+- **Client secret leaked**: generate a new one in the OAuth app, replace `GITHUB_CLIENT_SECRET`, delete the old one.
+- **Sign everybody out**: replace `ANNOTATIONS_SECRET`.
+- **Turn notes off**: remove the token or revoke it. The rest of the site keeps working; the annotation UI disappears.

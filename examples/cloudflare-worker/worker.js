@@ -5,16 +5,22 @@ import { createAnnotationsHandler, github } from 'starlight-annotations/server';
 
 export default {
   async fetch(request, env) {
-    const annotations = createAnnotationsHandler(
-      github({
+    if (new URL(request.url).pathname.startsWith('/_annotations/')) {
+      const options = {
         repo: env.ANNOTATIONS_REPO,
-        branch: env.ANNOTATIONS_BRANCH,
+        branch: env.ANNOTATIONS_BRANCH || undefined,
         token: env.GITHUB_TOKEN,
         clientId: env.GITHUB_CLIENT_ID,
         clientSecret: env.GITHUB_CLIENT_SECRET,
         sessionSecret: env.ANNOTATIONS_SECRET,
-      }),
-    );
-    return (await annotations(request)) ?? env.ASSETS.fetch(request);
+      };
+      // Until every value is set, answer 503: the pages then hide the annotation UI.
+      if (Object.entries(options).some(([key, value]) => key !== 'branch' && !value)) {
+        return Response.json({ error: 'Annotations are not configured.' }, { status: 503 });
+      }
+      const response = await createAnnotationsHandler(github(options))(request);
+      if (response) return response;
+    }
+    return env.ASSETS.fetch(request);
   },
 };

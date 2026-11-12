@@ -10,16 +10,22 @@ import { createAnnotationsHandler, github } from 'starlight-annotations/server';
 
 export default {
   async fetch(request, env) {
-    const annotations = createAnnotationsHandler(
-      github({
+    if (new URL(request.url).pathname.startsWith('/_annotations/')) {
+      const options = {
         repo: env.ANNOTATIONS_REPO,
         token: env.GITHUB_TOKEN,
         clientId: env.GITHUB_CLIENT_ID,
         clientSecret: env.GITHUB_CLIENT_SECRET,
         sessionSecret: env.ANNOTATIONS_SECRET,
-      }),
-    );
-    return (await annotations(request)) ?? env.ASSETS.fetch(request);
+      };
+      // Until every value is set, answer 503: the pages then hide the annotation UI.
+      if (Object.values(options).some((value) => !value)) {
+        return Response.json({ error: 'Annotations are not configured.' }, { status: 503 });
+      }
+      const response = await createAnnotationsHandler(github(options))(request);
+      if (response) return response;
+    }
+    return env.ASSETS.fetch(request);
   },
 };
 ```
@@ -44,7 +50,7 @@ npx wrangler secret put GITHUB_TOKEN
 openssl rand -hex 32 | npx wrangler secret put ANNOTATIONS_SECRET
 ```
 
-Then `npm run build && npx wrangler deploy`.
+Then `npm run build && npx wrangler deploy`. The OAuth app, the token and the session secret are explained step by step in [Store notes on GitHub](/starlight-annotations/guides/github/).
 
 ## A site behind a password
 

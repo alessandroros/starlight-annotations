@@ -116,11 +116,17 @@ describe('handler with GitHub', () => {
     expect((await replied.json()).annotations).toHaveLength(2);
   });
 
-  it('refuses people who may not write', async () => {
-    gh = fakeGitHub({ permission: null });
+  it.each([
+    ['not a collaborator', null, 403],
+    ['read access', 'read', 403],
+    ['no access', 'none', 403],
+    ['write access', 'write', 303],
+    ['admin', 'admin', 303],
+  ])('with %s, sign-in answers %i', async (_, permission, status) => {
+    gh = fakeGitHub({ permission });
     vi.stubGlobal('fetch', gh.fetch);
     const request = client(createAnnotationsHandler(github(options)));
-    expect((await signIn(request)).status).toBe(403);
+    expect((await signIn(request)).status).toBe(status);
   });
 
   it('supports a list of writers and "anyone"', async () => {

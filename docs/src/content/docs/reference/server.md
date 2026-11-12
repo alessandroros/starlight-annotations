@@ -30,7 +30,7 @@ Returns `{ storage, auth }`: `githubStorage(options)` and `githubAuth(options)` 
 | `commitMessage` | | `(message, page) => string`, to follow your commit convention. |
 | `clientId`, `clientSecret` | | The OAuth app. |
 | `sessionSecret` | | Signs the session cookie. |
-| `writers` | `'collaborators'` | `'collaborators'`, `'anyone'`, a list of logins, or `(profile) => boolean`. |
+| `writers` | `'collaborators'` | `'collaborators'` (write, maintain or admin access to `repo`), `'anyone'`, a list of logins, or `(profile) => boolean`. |
 | `cookieSecure` | `true` | Set `false` only to test over plain http. |
 
 ## `staticAuth(user)`

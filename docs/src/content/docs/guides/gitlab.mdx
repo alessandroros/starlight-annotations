@@ -1,0 +1,79 @@
+---
+title: Store notes on GitLab
+description: Notes committed to a GitLab project, on gitlab.com or your own GitLab.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Experimental">
+GitLab support is tested against a simulated GitLab API. If you run it on a real instance, please [tell us how it went](https://github.com/alessandroros/starlight-annotations/issues).
+</Aside>
+
+It works like [the GitHub storage](/starlight-annotations/guides/github/): one JSON file per page on an `annotations` branch, created from the default branch on the first save, and each note a commit by its author. Readers sign in with GitLab, and only project members with the **Developer** role or higher may annotate.
+
+The setup has the same three pieces: an **OAuth application**, a **server token** and a **session secret**. Read [Before you start: which repository?](/starlight-annotations/guides/github/#before-you-start-which-repository) on the GitHub page first: the same advice applies.
+
+## 1. Create the OAuth application
+
+<Steps>
+
+1. Open *User settings → Applications* (`https://gitlab.com/-/user_settings/applications` on gitlab.com). A group owner can create it under the group's *Settings → Applications* instead, so it does not depend on one person.
+
+2. Fill in the form:
+
+   | Field | Value |
+   |---|---|
+   | Name | Something readers recognize, e.g. `Acme docs – annotations` |
+   | Redirect URI | `https://docs.example.com/_annotations/callback` (with your site `base` before `/_annotations` if you have one) |
+   | Confidential | **On** |
+   | Scopes | **`read_user`** only |
+
+3. Save. Copy the **Application ID** (your `clientId`) and the **Secret** (your `clientSecret`; it is shown once).
+
+</Steps>
+
+## 2. Create the server token
+
+The server reads and commits notes with this token and checks who is a member.
+
+- **Project access token** (*Project → Settings → Access tokens*), where your GitLab plan offers it: role **Developer**, scope **`api`**. It belongs to the project, not to a person.
+- Otherwise a **personal access token** of a member with the Developer role or higher: scope **`api`**.
+
+Set an expiry date and a reminder: when the token expires, saving notes stops until you replace it.
+
+<Aside>
+`write_repository` is not enough: it covers Git over HTTPS, while the plugin uses the REST API to commit files, which needs `api`.
+</Aside>
+
+## 3. Create the session secret
+
+```sh
+openssl rand -hex 32
+```
+
+## 4. Configure your server
+
+```js
+import { createAnnotationsHandler, gitlab } from 'starlight-annotations/server';
+
+const handle = createAnnotationsHandler(
+  gitlab({
+    host: 'https://gitlab.example.com', // leave out for gitlab.com
+    project: 'group/docs',              // path or numeric id
+    token: env.GITLAB_TOKEN,
+    clientId: env.GITLAB_CLIENT_ID,
+    clientSecret: env.GITLAB_CLIENT_SECRET,
+    sessionSecret: env.ANNOTATIONS_SECRET,
+  }),
+);
+```
+
+Mount it like the GitHub handler: see [Cloudflare Workers](/starlight-annotations/guides/cloudflare/) or [other hosts](/starlight-annotations/guides/other-hosts/). `branch`, `dir`, `writers` and `commitMessage` work as for GitHub.
+
+## Troubleshooting
+
+| What you see | What to do |
+|---|---|
+| "&lt;login&gt; may not annotate these docs: a Developer role or higher on the project is needed" | Give the person the Developer role, or check that the server token can read the project members (scope `api`) |
+| GitLab says the redirect URI is invalid | Make the application's Redirect URI exactly `https://<site><base>/_annotations/callback` |
+| Saving fails with "The annotation service failed" | The token expired, lacks `api`, or its role cannot push to the `annotations` branch (check *Protected branches*) |

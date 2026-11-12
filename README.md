@@ -1,10 +1,17 @@
-# Starlight Annotations
+# 🖍️ Starlight Annotations
+
+[![npm](https://img.shields.io/npm/v/starlight-annotations?color=blue)](https://www.npmjs.com/package/starlight-annotations)
+[![CI](https://github.com/alessandroros/starlight-annotations/actions/workflows/ci.yml/badge.svg)](https://github.com/alessandroros/starlight-annotations/actions/workflows/ci.yml)
+[![Docs](https://github.com/alessandroros/starlight-annotations/actions/workflows/docs.yml/badge.svg)](https://alessandroros.github.io/starlight-annotations/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
 Let readers highlight text and leave notes on your [Starlight](https://starlight.astro.build) docs. Notes are JSON files committed to your Git repository.
 
-**[Documentation and live demo](https://alessandroros.github.io/starlight-annotations/)** · **[npm](https://www.npmjs.com/package/starlight-annotations)**
+**📖 [Documentation](https://alessandroros.github.io/starlight-annotations/) · ✨ [Live demo](https://alessandroros.github.io/starlight-annotations/guides/demo/) · 📦 [npm](https://www.npmjs.com/package/starlight-annotations)**
 
-## Repository
+See the [package README](./packages/starlight-annotations/README.md) for features and the quick start.
+
+## 📁 Repository
 
 ```text
 packages/starlight-annotations/   the plugin, the client and the server handler
@@ -12,7 +19,7 @@ docs/                             the documentation site, which is also the demo
 examples/cloudflare-worker/       a Worker serving the docs and the API
 ```
 
-## Develop
+## 🛠️ Develop
 
 ```sh
 npm install
@@ -21,14 +28,14 @@ npm run dev                               # docs with notes in the browser
 ANNOTATIONS_BACKEND=api npm run dev       # docs with the API, notes in docs/.annotations/
 ```
 
-## Release
+## 📦 Release
 
 Describe user-facing changes with `npx changeset`. On `main`, the release workflow opens a "Version packages" pull request; merging it publishes to npm with provenance.
 
-## Contributing
+## 🤝 Contributing
 
 Issues and pull requests are welcome. Please open an issue first for larger changes, and add a changeset to pull requests that change the package.
 
-## License
+## 📄 License
 
-[MIT](./LICENSE)
+[MIT](./LICENSE) © Alessandro Rosa

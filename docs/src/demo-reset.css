@@ -1,0 +1,13 @@
+.demo-reset {
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 999px;
+  background: var(--sl-color-bg-nav);
+  color: var(--sl-color-white);
+  font: inherit;
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+}
+.demo-reset:hover {
+  border-color: var(--sl-color-accent);
+}

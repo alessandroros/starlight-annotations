@@ -5,10 +5,16 @@ description: A page to play with. Notes you write here stay in your browser.
 
 This site runs the plugin with the `browser` backend, so you can try everything here. Your notes are saved in this browser only; nobody else sees them.
 
+The page starts with a few **example notes** from Ada and Grace, two made-up readers: the yellow highlights below. Click one to open its thread, or press **Notes** at the bottom right to see them all.
+
+<button type="button" class="demo-reset" onclick="localStorage.removeItem('starlight-annotations:guides/demo'); location.reload()">↺ Reset the demo</button>
+
+Then try it yourself:
+
 1. **Select** a few words in the paragraph below.
 2. Press **Annotate**, write a note, and press **Save** (or ⌘/Ctrl + Enter).
 3. Click the highlighted text to open the thread. **Reply**, then reply to your reply.
-4. **Resolve** the thread: the highlight goes away. Turn on **Show resolved** to see it again.
+4. **Resolve** the thread: the highlight goes away. Turn on **Show resolved** to see it again, together with the example note that is already resolved.
 
 ## Something to annotate
 

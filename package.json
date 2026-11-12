@@ -1,0 +1,24 @@
+{
+  "name": "starlight-annotations-monorepo",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "docs",
+    "examples/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w docs",
+    "build": "npm run build -w docs",
+    "test": "npm test -w starlight-annotations",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

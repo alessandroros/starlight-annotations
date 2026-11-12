@@ -1,0 +1,31 @@
+---
+title: Starlight Annotations
+description: Let readers highlight text and leave notes on your Starlight docs. Notes live in your Git repository.
+template: splash
+hero:
+  tagline: Readers select text, write a note, and the note is committed to your repository. Review docs where they are read.
+  actions:
+    - text: Get started
+      link: getting-started/
+      icon: right-arrow
+    - text: Try it on this page
+      link: guides/demo/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <Card title="Notes in your repo" icon="seti:git">
+    One JSON file per page, on a branch of its own. Every note is a commit by its author. No third-party service keeps your data.
+  </Card>
+  <Card title="Anchored to the text" icon="pencil">
+    Notes follow the W3C Web Annotation model and find their place again after edits. Long passages are stored by their start and end.
+  </Card>
+  <Card title="Threads" icon="comment">
+    Markdown with a formatting toolbar, replies, "in reply to" references, resolve and reopen.
+  </Card>
+  <Card title="Runs anywhere" icon="rocket">
+    The API is one Web-standard handler: Cloudflare Workers, Netlify, Vercel, Deno, Node. Or keep notes in the browser with no server at all.
+  </Card>
+</CardGrid>

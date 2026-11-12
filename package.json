@@ -13,7 +13,7 @@
     "test": "npm test -w starlight-annotations",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "changeset publish"
+    "release": "node scripts/stage-release.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3"

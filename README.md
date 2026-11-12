@@ -30,7 +30,7 @@ ANNOTATIONS_BACKEND=api npm run dev       # docs with the API, notes in docs/.an
 
 ## 📦 Release
 
-Describe user-facing changes with `npx changeset`. On `main`, the release workflow opens a "Version packages" pull request; merging it publishes to npm with provenance.
+Describe user-facing changes with `npx changeset`. On `main`, the release workflow opens a "Version packages" pull request; merging it **stages** the new version on npm with provenance. A maintainer then approves it on npmjs.com (or with `npm stage approve`), with 2FA, and only then is it published.
 
 ## 🤝 Contributing
 

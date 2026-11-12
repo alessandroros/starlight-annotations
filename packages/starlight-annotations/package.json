@@ -40,6 +40,7 @@
       "default": "./src/server/node.js"
     },
     "./client": "./src/client/annotations.js",
+    "./styles.css": "./src/client/styles.css",
     "./package.json": "./package.json"
   },
   "files": [

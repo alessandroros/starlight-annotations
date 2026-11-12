@@ -14,7 +14,10 @@ export default function starlightAnnotations(options = {}) {
   return {
     name: 'starlight-annotations',
     hooks: {
-      'config:setup'({ addIntegration }) {
+      'config:setup'({ addIntegration, config: starlightConfig, updateConfig }) {
+        // Starlight links customCss on every page, in dev and in the build.
+        // (CSS imported by an injected script is bundled but not linked.)
+        updateConfig({ customCss: [...(starlightConfig.customCss ?? []), 'starlight-annotations/styles.css'] });
         addIntegration(annotationsIntegration(config));
       },
     },

@@ -9,7 +9,6 @@
 import config from 'virtual:starlight-annotations/config';
 import { createBackend } from './backend.js';
 import { strings } from './i18n.js';
-import './styles.css';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 // Text the reader does not see as content: diagrams (rendered late), heading

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 import starlightAnnotations from 'starlight-annotations';
@@ -12,6 +13,9 @@ export default defineConfig({
     starlight({
       title: 'Starlight Annotations',
       description: 'Let readers highlight text and leave notes on your Starlight docs. Notes live in your Git repository.',
+      // Example notes for the demo page (see src/demo-seed.js).
+      head: [{ tag: 'script', content: readFileSync(new URL('./src/demo-seed.js', import.meta.url), 'utf8') }],
+      customCss: ['./src/demo-reset.css'],
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/alessandroros/starlight-annotations' }],
       editLink: { baseUrl: 'https://github.com/alessandroros/starlight-annotations/edit/main/docs/' },
       sidebar: [

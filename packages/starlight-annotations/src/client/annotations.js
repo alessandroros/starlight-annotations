@@ -6,8 +6,6 @@
 // Notes are written in Markdown (GitHub flavour) and stored as typed.
 // micromark escapes raw HTML and drops javascript: links by default, so a
 // note cannot inject markup into the page.
-import { micromark } from 'micromark';
-import { gfm, gfmHtml } from 'micromark-extension-gfm';
 import config from 'virtual:starlight-annotations/config';
 import { createBackend } from './backend.js';
 import { strings } from './i18n.js';
@@ -26,8 +24,35 @@ const mod = mac ? '⌘' : 'Ctrl+';
 
 // ---- Markdown ----
 
+// The Markdown parser is most of the client's weight, so it loads on demand:
+// when the page has notes, or when the reader starts to write one. Until it
+// arrives a note shows as plain text, then it is filled in.
+let markdown = null;
+let markdownLoading = null;
+const waitingForMarkdown = new Map(); // element -> source
+
+function loadMarkdown() {
+  markdownLoading ??= Promise.all([import('micromark'), import('micromark-extension-gfm')]).then(([{ micromark }, { gfm, gfmHtml }]) => {
+    markdown = (source) => micromark(source, { extensions: [gfm()], htmlExtensions: [gfmHtml()] });
+    for (const [target, source] of waitingForMarkdown) if (target.isConnected) renderMarkdown(target, source);
+    waitingForMarkdown.clear();
+  }).catch(() => {
+    // Offline or blocked: notes stay as plain text, and the next note retries.
+    markdownLoading = null;
+  });
+  return markdownLoading;
+}
+
 function renderMarkdown(target, source) {
-  target.innerHTML = micromark(source, { extensions: [gfm()], htmlExtensions: [gfmHtml()] });
+  if (!markdown) {
+    target.textContent = source;
+    target.classList.add('annot-md-pending');
+    waitingForMarkdown.set(target, source);
+    loadMarkdown();
+    return target;
+  }
+  target.classList.remove('annot-md-pending');
+  target.innerHTML = markdown(source);
   for (const link of target.querySelectorAll('a[href]')) {
     // micromark empties unsafe URLs (javascript: and the like): show plain text.
     if (!link.getAttribute('href')) {
@@ -654,6 +679,7 @@ async function start(root) {
 
   function compose() {
     if (!selected) return;
+    loadMarkdown();
     state.pending = selected.selector;
     selectButton.hidden = true;
     window.getSelection()?.removeAllRanges();

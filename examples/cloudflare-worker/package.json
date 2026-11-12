@@ -1,0 +1,12 @@
+{
+  "name": "example-cloudflare-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npm run build -w docs --prefix ../..",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "starlight-annotations": "*"
+  }
+}

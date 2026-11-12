@@ -1,0 +1,19 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "my-docs",
+  "main": "./worker.js",
+  "compatibility_date": "2026-10-29",
+  "assets": {
+    // The built Starlight site.
+    "directory": "../../docs/dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/_annotations/*"]
+  },
+  "vars": {
+    "ANNOTATIONS_REPO": "owner/docs",
+    "ANNOTATIONS_BRANCH": "annotations",
+    "GITHUB_CLIENT_ID": ""
+  }
+  // Secrets: GITHUB_CLIENT_SECRET, GITHUB_TOKEN, ANNOTATIONS_SECRET
+  // (`npx wrangler secret put <NAME>`, or .dev.vars for `wrangler dev`).
+}

@@ -1,4 +1,5 @@
 // The annotation API as a Web-standard handler: (Request) => Response | null.
+// Storage and sign-in for GitHub, GitLab, and Gitea/Forgejo (Codeberg).
 // It runs anywhere that speaks fetch: Cloudflare Workers, Deno, Bun, Netlify
 // and Vercel functions, Node 20+, or an Astro endpoint.
 //
@@ -13,6 +14,8 @@
 import { AnnotationError, ROUTE_PREFIX, applyChange, checkPage, json } from '../core.js';
 
 export { github, githubAuth, githubStorage } from './github.js';
+export { gitlab, gitlabAuth, gitlabStorage } from './gitlab.js';
+export { forgejo, gitea, giteaAuth, giteaStorage } from './gitea.js';
 export { AnnotationError } from '../core.js';
 
 /**

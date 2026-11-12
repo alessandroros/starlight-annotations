@@ -65,9 +65,83 @@ export interface GitHubAuthOptions {
   cookieSecure?: boolean;
 }
 
+export type GitHubOptions = GitHubStorageOptions & GitHubAuthOptions;
+
 export function githubStorage(options: GitHubStorageOptions): Storage;
 export function githubAuth(options: GitHubAuthOptions): Auth;
-export function github(options: GitHubStorageOptions & GitHubAuthOptions): { storage: Storage; auth: Auth };
+export function github(options: GitHubOptions): { storage: Storage; auth: Auth };
+
+interface CommonStorageOptions {
+  /** Branch for the notes. Created from the default branch on the first save. Default `"annotations"`. */
+  branch?: string;
+  /** Folder for the notes in the branch. Default `"annotations"`. */
+  dir?: string;
+  /** Rewrite the commit message, e.g. to fit your commit convention. */
+  commitMessage?: (message: string, page: string) => string;
+}
+
+interface CommonAuthOptions {
+  /** OAuth application id and secret. */
+  clientId: string;
+  clientSecret: string;
+  /** A long random string that signs the session cookie. */
+  sessionSecret: string;
+  /**
+   * Who may write. `"collaborators"` (default) checks the reader's role on the repository with
+   * `token`. `"anyone"` accepts every signed-in user.
+   */
+  writers?: 'collaborators' | 'anyone' | string[] | ((profile: { login: string; id: number }) => boolean | Promise<boolean>);
+  /** Set to false only for plain-http local testing. Default true. */
+  cookieSecure?: boolean;
+}
+
+export interface GitLabStorageOptions extends CommonStorageOptions {
+  /** Your GitLab, e.g. `"https://gitlab.example.com"`. Default `"https://gitlab.com"`. */
+  host?: string;
+  /** Project path (`"group/project"`) or numeric id. */
+  project: string | number;
+  /** Project, group or personal access token with the `api` scope and the Developer role. */
+  token: string;
+}
+
+/** `"collaborators"` means project members with the Developer role or higher. */
+export interface GitLabAuthOptions extends CommonAuthOptions {
+  host?: string;
+  project?: string | number;
+  token?: string;
+}
+
+export type GitLabOptions = GitLabStorageOptions & GitLabAuthOptions;
+
+/** Experimental: tested against a simulated GitLab API. */
+export function gitlabStorage(options: GitLabStorageOptions): Storage;
+export function gitlabAuth(options: GitLabAuthOptions): Auth;
+export function gitlab(options: GitLabOptions): { storage: Storage; auth: Auth };
+
+export interface GiteaStorageOptions extends CommonStorageOptions {
+  /** Your Gitea or Forgejo server, e.g. `"https://codeberg.org"`. */
+  host: string;
+  /** `owner/name` of the repository. */
+  repo: string;
+  /** Access token with `write:repository` on the repository. */
+  token: string;
+}
+
+/** `"collaborators"` means people with write, admin or owner permission on the repository. */
+export interface GiteaAuthOptions extends CommonAuthOptions {
+  host: string;
+  repo?: string;
+  token?: string;
+}
+
+export type GiteaOptions = GiteaStorageOptions & GiteaAuthOptions;
+
+/** Experimental: tested against a simulated Gitea API. Works with Forgejo and Codeberg. */
+export function giteaStorage(options: GiteaStorageOptions): Storage;
+export function giteaAuth(options: GiteaAuthOptions): Auth;
+export function gitea(options: GiteaOptions): { storage: Storage; auth: Auth };
+/** The same as `gitea`: Forgejo speaks the Gitea API. */
+export const forgejo: typeof gitea;
 
 /** A fixed identity: for local development, or a site behind its own login. */
 export function staticAuth(user: User): Auth;

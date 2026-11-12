@@ -38,7 +38,7 @@ The published site needs somewhere to store notes. Pick one:
 
 | You want | Read |
 |---|---|
-| Notes committed to your GitHub repository, written by your team | [Store notes on GitHub](/starlight-annotations/guides/github/), then [Cloudflare Workers](/starlight-annotations/guides/cloudflare/) or [other hosts](/starlight-annotations/guides/other-hosts/) |
+| Notes committed to your repository, written by your team | [GitHub](/starlight-annotations/guides/github/), [GitLab](/starlight-annotations/guides/gitlab/) or [Gitea, Forgejo and Codeberg](/starlight-annotations/guides/gitea/), then [Cloudflare Workers](/starlight-annotations/guides/cloudflare/) or [other hosts](/starlight-annotations/guides/other-hosts/) |
 | Personal notes for each reader, no server | [Notes in the browser](/starlight-annotations/guides/browser-notes/) |
 
 Until the API answers, the published site shows no annotation UI, so you can install the plugin before the server is ready.

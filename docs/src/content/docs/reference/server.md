@@ -33,6 +33,30 @@ Returns `{ storage, auth }`: `githubStorage(options)` and `githubAuth(options)` 
 | `writers` | `'collaborators'` | `'collaborators'` (write, maintain or admin access to `repo`), `'anyone'`, a list of logins, or `(profile) => boolean`. |
 | `cookieSecure` | `true` | Set `false` only to test over plain http. |
 
+## `gitlab(options)` <small>experimental</small>
+
+`{ storage, auth }` for GitLab. Like `github`, with:
+
+| Option | Default | |
+|---|---|---|
+| `host` | `'https://gitlab.com'` | Your GitLab. |
+| `project` | | Path (`'group/docs'`) or numeric id. |
+| `token` | | Scope `api`, Developer role or higher. |
+
+`writers: 'collaborators'` means members with the Developer role or higher. See [the GitLab guide](/starlight-annotations/guides/gitlab/).
+
+## `gitea(options)`, `forgejo(options)` <small>experimental</small>
+
+`{ storage, auth }` for Gitea, Forgejo and Codeberg. Like `github`, with:
+
+| Option | Default | |
+|---|---|---|
+| `host` | | Your server, e.g. `'https://codeberg.org'`. Required. |
+| `repo` | | `owner/name`. |
+| `token` | | *repository: Read and write*. |
+
+`writers: 'collaborators'` means write, admin or owner permission. See [the Gitea guide](/starlight-annotations/guides/gitea/).
+
 ## `staticAuth(user)`
 
 Everybody is `user`. For development, or behind your own login (Cloudflare Access, a VPN) where you know who the reader is. Write your own auth to read the identity from a header instead.

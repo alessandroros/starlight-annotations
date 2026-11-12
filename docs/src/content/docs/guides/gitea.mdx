@@ -1,0 +1,72 @@
+---
+title: Gitea, Forgejo and Codeberg
+description: Notes committed to a repository on Gitea, Forgejo or Codeberg.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Experimental">
+Gitea and Forgejo support is tested against a simulated API. If you run it on a real server, please [tell us how it went](https://github.com/alessandroros/starlight-annotations/issues).
+</Aside>
+
+[Forgejo](https://forgejo.org) speaks the [Gitea](https://about.gitea.com) API, and [Codeberg](https://codeberg.org) runs Forgejo, so one provider covers all three. Use `gitea(…)` or its alias `forgejo(…)`.
+
+It works like [the GitHub storage](/starlight-annotations/guides/github/): one JSON file per page on an `annotations` branch, created from the default branch on the first save, and each note a commit by its author. Readers sign in with their account on your server, and only people with **write** access to the repository (or admins and the owner) may annotate.
+
+## 1. Create the OAuth2 application
+
+<Steps>
+
+1. Open *Settings → Applications* on your server (`https://codeberg.org/user/settings/applications` on Codeberg). An organization can own the application instead, under its own settings.
+
+2. Under **Manage OAuth2 applications**, fill in:
+
+   | Field | Value |
+   |---|---|
+   | Application name | Something readers recognize, e.g. `Acme docs – annotations` |
+   | Redirect URIs | `https://docs.example.com/_annotations/callback` (with your site `base` before `/_annotations` if you have one) |
+   | Confidential client | **On** |
+
+3. Create it, and copy the **Client ID** and the **Client secret** (shown once).
+
+</Steps>
+
+## 2. Create the server token
+
+In *Settings → Applications → Generate new token*, on an account with write access to the repository (a dedicated bot account works well):
+
+- **Repository and Organization access**: the repository, or all if your version cannot narrow it.
+- **Permissions**: **repository: Read and write**.
+
+## 3. Create the session secret
+
+```sh
+openssl rand -hex 32
+```
+
+## 4. Configure your server
+
+```js
+import { createAnnotationsHandler, gitea } from 'starlight-annotations/server';
+
+const handle = createAnnotationsHandler(
+  gitea({
+    host: 'https://codeberg.org', // or your Gitea / Forgejo
+    repo: 'owner/docs',
+    token: env.GITEA_TOKEN,
+    clientId: env.GITEA_CLIENT_ID,
+    clientSecret: env.GITEA_CLIENT_SECRET,
+    sessionSecret: env.ANNOTATIONS_SECRET,
+  }),
+);
+```
+
+Mount it like the GitHub handler: see [Cloudflare Workers](/starlight-annotations/guides/cloudflare/) or [other hosts](/starlight-annotations/guides/other-hosts/). `branch`, `dir`, `writers` and `commitMessage` work as for GitHub. Commits use the reader's `<login>@noreply.<host>` address.
+
+## Troubleshooting
+
+| What you see | What to do |
+|---|---|
+| "&lt;login&gt; may not annotate these docs" | Give the person write access to the repository, or check that the server token can read it |
+| The server rejects the redirect URI | Make it exactly `https://<site><base>/_annotations/callback` |
+| Saving fails with "The annotation service failed" | The token expired or lacks *repository: Read and write*, or the `annotations` branch is protected |

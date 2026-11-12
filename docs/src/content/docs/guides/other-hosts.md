@@ -57,4 +57,6 @@ export const ALL = async ({ request }) => (await handle(request)) ?? new Respons
 
 ## Your own storage
 
+Built in: [GitHub](/starlight-annotations/guides/github/), [GitLab](/starlight-annotations/guides/gitlab/) and [Gitea / Forgejo](/starlight-annotations/guides/gitea/). For anything else (Bitbucket, Azure DevOps, a database, a folder that something else commits), write your own.
+
 `createAnnotationsHandler` takes any `{ storage, auth }` pair. A storage has `load(page)` and `update(page, mutate, user)`; an auth has `user(request)` and, optionally, `route(...)` for sign-in pages. See [the server reference](/starlight-annotations/reference/server/).

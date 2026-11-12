@@ -20,7 +20,7 @@ export default defineConfig({
       editLink: { baseUrl: 'https://github.com/alessandroros/starlight-annotations/edit/main/docs/' },
       sidebar: [
         { label: 'Start here', items: ['getting-started', 'guides/demo'] },
-        { label: 'Guides', items: ['guides/github', 'guides/cloudflare', 'guides/other-hosts', 'guides/browser-notes'] },
+        { label: 'Guides', items: ['guides/github', 'guides/gitlab', 'guides/gitea', 'guides/cloudflare', 'guides/other-hosts', 'guides/browser-notes'] },
         { label: 'Reference', items: ['reference/options', 'reference/server', 'reference/format', 'reference/security'] },
       ],
       plugins: [starlightAnnotations({ backend: process.env.ANNOTATIONS_BACKEND === 'api' ? 'api' : 'browser' })],

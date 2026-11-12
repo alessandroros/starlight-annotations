@@ -172,6 +172,9 @@
 .annot-text {
   overflow-wrap: anywhere;
 }
+.annot-md-pending {
+  white-space: pre-wrap;
+}
 
 /* Markdown inside notes and the preview: compact, sized for the panel. */
 .annot-md > :first-child {

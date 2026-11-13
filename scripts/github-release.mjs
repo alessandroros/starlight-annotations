@@ -2,7 +2,7 @@
 // with that version's section of the changelog as notes. It does nothing when
 // the release already exists, so it is safe to run again.
 //
-//   node scripts/github-release.mjs 0.2.0   # one version, e.g. to backfill
+//   node scripts/github-release.mjs 0.2.0   # one version, e.g. to backfill (v0.2.0 works too)
 //
 // The release workflow calls it through stage-release.mjs once an approved
 // version shows up on npm. Needs the `gh` CLI, signed in or with GH_TOKEN /
@@ -89,7 +89,8 @@ export function githubRelease(version) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const version = process.argv[2];
+  // Accept the tag name too: "v0.2.0" and "0.2.0" are the same version.
+  const version = process.argv[2]?.replace(/^v/, '');
   if (!version) {
     console.error('Usage: node scripts/github-release.mjs <version>');
     process.exit(1);

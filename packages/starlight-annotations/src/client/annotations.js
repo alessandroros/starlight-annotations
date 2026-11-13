@@ -247,7 +247,11 @@ async function start(root) {
   const toggle = h('button', { type: 'button', class: 'annot-toggle', onclick: () => setOpen(!drawer.classList.contains('open')) }, T.notes, count);
   const body = h('div', { class: 'annot-body' });
   // The page with every note on the site, when the plugin adds it.
-  const overviewUrl = config.overview ? `${BASE}/${config.overview}/` : null;
+  // In the reader's locale, like the rest of the page.
+  const locale = page.split('/')[0];
+  const overviewUrl = config.overview
+    ? `${BASE}/${config.locales && locale in config.locales ? `${locale}/` : ''}${config.overview}/`
+    : null;
   const resolvedBox = h('input', {
     type: 'checkbox',
     onchange: (event) => {

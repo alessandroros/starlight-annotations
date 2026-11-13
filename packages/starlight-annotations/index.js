@@ -18,10 +18,16 @@ export default function starlightAnnotations(options = {}) {
         // Starlight links customCss on every page, in dev and in the build.
         // (CSS imported by an injected script is bundled but not linked.)
         updateConfig({ customCss: [...(starlightConfig.customCss ?? []), 'starlight-annotations/styles.css'] });
-        // The overview page is not localized: it speaks the default language.
+        // The overview page exists once per locale (/annotations/, /it/annotations/…),
+        // because Starlight prefixes sidebar links with the reader's locale.
         const locales = starlightConfig.locales ?? {};
         const lang = locales[starlightConfig.defaultLocale ?? 'root']?.lang ?? locales.root?.lang ?? starlightConfig.defaultLocale ?? 'en';
-        addIntegration(annotationsIntegration({ ...config, lang }));
+        const prefixed = Object.fromEntries(
+          Object.entries(locales)
+            .filter(([key]) => key !== 'root')
+            .map(([key, locale]) => [key, locale?.lang ?? key]),
+        );
+        addIntegration(annotationsIntegration({ ...config, lang, locales: prefixed }));
       },
     },
   };
@@ -79,7 +85,11 @@ function annotationsIntegration(config) {
         });
         injectScript('page', `import 'starlight-annotations/client';`);
         if (config.overview) {
-          injectRoute({ pattern: `/${config.overview}`, entrypoint: fileURLToPath(new URL('./src/overview.astro', import.meta.url)), prerender: true });
+          injectRoute({
+            pattern: `/[...locale]/${config.overview}`,
+            entrypoint: fileURLToPath(new URL('./src/overview.astro', import.meta.url)),
+            prerender: true,
+          });
         }
       },
 

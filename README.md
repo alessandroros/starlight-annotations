@@ -7,7 +7,7 @@
 
 Let readers highlight text and leave notes on your [Starlight](https://starlight.astro.build) docs. Notes are JSON files committed to your Git repository.
 
-**📖 [Documentation](https://alessandroros.github.io/starlight-annotations/) · ✨ [Live demo](https://alessandroros.github.io/starlight-annotations/guides/demo/) · 📦 [npm](https://www.npmjs.com/package/starlight-annotations)**
+**📖 [Documentation](https://alessandroros.github.io/starlight-annotations/) · ✨ [Live demo](https://alessandroros.github.io/starlight-annotations/guides/demo/) · 📦 [npm](https://www.npmjs.com/package/starlight-annotations) · 📋 [Changelog](./packages/starlight-annotations/CHANGELOG.md)**
 
 See the [package README](./packages/starlight-annotations/README.md) for features and the quick start.
 
@@ -23,18 +23,15 @@ examples/cloudflare-worker/       a Worker serving the docs and the API
 
 ```sh
 npm install
-npm test                                  # unit tests
-npm run dev                               # docs with notes in the browser
-ANNOTATIONS_BACKEND=api npm run dev       # docs with the API, notes in docs/.annotations/
+npm test        # unit tests
+npm run dev     # the docs site, with the demo
 ```
 
-## 📦 Release
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for pull requests, changesets and how releases are made.
 
-Describe user-facing changes with `npx changeset`. On `main`, the release workflow opens a "Version packages" pull request; merging it **stages** the new version on npm with provenance. A maintainer then approves it on npmjs.com (or with `npm stage approve`), with 2FA, and only then is it published.
+## 📋 Releases
 
-## 🤝 Contributing
-
-Issues and pull requests are welcome. Please open an issue first for larger changes, and add a changeset to pull requests that change the package.
+What changed in each version is in the [changelog](./packages/starlight-annotations/CHANGELOG.md), also on the [docs site](https://alessandroros.github.io/starlight-annotations/changelog/) and in the [GitHub releases](https://github.com/alessandroros/starlight-annotations/releases). The package follows semantic versioning; while it is `0.x`, a minor version may change behavior, and its notes say what to update.
 
 ## 📄 License
 

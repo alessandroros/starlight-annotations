@@ -1,0 +1,9 @@
+---
+// Renders the package changelog, which Changesets writes on every release,
+// without its "# starlight-annotations" title (the page has its own).
+import { compiledContent } from '../../../packages/starlight-annotations/CHANGELOG.md';
+
+const html = (await compiledContent()).replace(/<h1[^>]*>[\s\S]*?<\/h1>/, '');
+---
+
+<Fragment set:html={html} />

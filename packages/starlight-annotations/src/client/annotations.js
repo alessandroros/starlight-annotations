@@ -246,6 +246,8 @@ async function start(root) {
   const count = h('span', { class: 'annot-count' });
   const toggle = h('button', { type: 'button', class: 'annot-toggle', onclick: () => setOpen(!drawer.classList.contains('open')) }, T.notes, count);
   const body = h('div', { class: 'annot-body' });
+  // The page with every note on the site, when the plugin adds it.
+  const overviewUrl = config.overview ? `${BASE}/${config.overview}/` : null;
   const resolvedBox = h('input', {
     type: 'checkbox',
     onchange: (event) => {
@@ -261,6 +263,7 @@ async function start(root) {
       'header',
       {},
       h('strong', {}, T.notes),
+      overviewUrl ? h('a', { class: 'annot-all', href: overviewUrl }, T.allNotes) : null,
       h(
         'label',
         { class: 'annot-resolved-toggle' },
@@ -562,10 +565,10 @@ async function start(root) {
       .filter((thread) => visible(thread) && state.anchors.has(thread.id))
       .sort((a, b) => state.anchors.get(a.id).start - state.anchors.get(b.id).start);
     const orphans = all.filter((thread) => visible(thread) && !state.anchors.has(thread.id));
-    if (all.length === 0 && !state.pending) parts.push(h('p', { class: 'annot-empty' }, T.empty));
+    if (all.length === 0 && !state.pending)
+      parts.push(h('p', { class: 'annot-empty' }, T.empty, overviewUrl ? [' ', h('a', { href: overviewUrl }, T.seeAll)] : null));
     parts.push(...anchored.map((thread) => threadCard(thread, true)));
     if (orphans.length) parts.push(h('h3', { class: 'annot-orphans' }, T.orphans), ...orphans.map((thread) => threadCard(thread, false)));
-    if (config.overview) parts.push(h('p', { class: 'annot-all' }, h('a', { href: `${BASE}/${config.overview}/` }, `${T.allNotes} →`)));
     body.replaceChildren(...parts.filter(Boolean));
   }
 

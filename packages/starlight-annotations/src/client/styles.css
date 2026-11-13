@@ -386,10 +386,10 @@ button.annot-ref:hover {
   }
 }
 
-/* Link from the panel to the overview page. */
+/* Link from the panel header to the overview page. */
 .annot-all {
-  margin-top: 1rem;
-  text-align: center;
+  font-size: var(--sl-text-xs);
+  white-space: nowrap;
 }
 
 /* The overview page. */

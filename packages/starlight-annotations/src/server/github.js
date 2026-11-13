@@ -6,33 +6,53 @@
 // branch on the first save. Each commit has the reader as author (their
 // noreply address), so `git log` and `git blame` show who wrote what.
 //
-// Sign-in: a GitHub OAuth app. Only people with write access to `repo` may
-// annotate, unless `writers` says otherwise.
+// Sign-in: a GitHub OAuth app, or the client id and secret of a GitHub App.
+// Only people with write access to `repo` may annotate, unless `writers`
+// says otherwise.
+//
+// Server credentials: a token, or `app` ({ appId, privateKey }) for a GitHub
+// App installed on `repo` (see github-app.js).
 
 import { filePath } from '../core.js';
+import { githubAppToken } from './github-app.js';
 import { gitStorage } from './git-storage.js';
 import { oauthAuth } from './oauth.js';
 import { decodeText, encodeText, required, restClient } from './util.js';
 
+// `token` is a string, or a function that returns one (a GitHub App).
 const client = (token) =>
   restClient({
     base: 'https://api.github.com',
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+    headers: async () => ({
+      Authorization: `Bearer ${typeof token === 'function' ? await token() : token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    }),
     label: 'GitHub',
   });
 
+// The server credential: `token` as given, or installation tokens of `app`.
+function serverToken({ repo, token, app }, where) {
+  if (token) return token;
+  if (app) return githubAppToken({ ...app, repo });
+  throw new Error(`starlight-annotations: ${where} needs token or app.`);
+}
+
 /**
- * Storage and sign-in together, which is what most sites want.
+ * Storage and sign-in together, which is what most sites want. With `app`,
+ * both share one installation token.
  * @param {import('../../server').GitHubOptions} options
  */
 export function github(options) {
-  return { storage: githubStorage(options), auth: githubAuth(options) };
+  const token = options.token || options.app ? serverToken(options, 'github') : undefined;
+  const shared = { ...options, token, app: undefined };
+  return { storage: githubStorage(shared), auth: githubAuth(shared) };
 }
 
 /** @param {import('../../server').GitHubStorageOptions} options */
-export function githubStorage({ repo, token, branch = 'annotations', dir = 'annotations', commitMessage }) {
-  required({ repo, token }, 'githubStorage');
-  const api = client(token);
+export function githubStorage({ repo, token, app, branch = 'annotations', dir = 'annotations', commitMessage }) {
+  required({ repo }, 'githubStorage');
+  const api = client(serverToken({ repo, token, app }, 'githubStorage'));
   const contentsPath = (page) => `/repos/${repo}/contents/${filePath(page, dir).split('/').map(encodeURIComponent).join('/')}`;
 
   return gitStorage({
@@ -78,8 +98,12 @@ export function githubStorage({ repo, token, branch = 'annotations', dir = 'anno
 }
 
 /** @param {import('../../server').GitHubAuthOptions} options */
-export function githubAuth({ repo, token, writers = 'collaborators', ...options }) {
-  if (writers === 'collaborators') required({ repo, token }, 'githubAuth with writers "collaborators"');
+export function githubAuth({ repo, token, app, writers = 'collaborators', ...options }) {
+  let server;
+  if (writers === 'collaborators') {
+    required({ repo }, 'githubAuth with writers "collaborators"');
+    server = serverToken({ repo, token, app }, 'githubAuth with writers "collaborators"');
+  }
   return oauthAuth({
     ...options,
     writers,
@@ -96,7 +120,7 @@ export function githubAuth({ repo, token, writers = 'collaborators', ...options 
     // counts as write, triage as read. On a public repository GitHub answers
     // "read" for anyone, so read access is not enough.
     async canWrite(profile) {
-      const permission = await client(token).get(`/repos/${repo}/collaborators/${encodeURIComponent(profile.login)}/permission`, {
+      const permission = await client(server).get(`/repos/${repo}/collaborators/${encodeURIComponent(profile.login)}/permission`, {
         allow404: true,
       });
       return permission?.permission === 'admin' || permission?.permission === 'write';

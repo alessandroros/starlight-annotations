@@ -45,8 +45,10 @@ export function createAnnotationsHandler(options: HandlerOptions): (request: Req
 export interface GitHubStorageOptions {
   /** `owner/name` of the repository that stores the notes. */
   repo: string;
-  /** Token with Contents read/write (and Metadata read) on `repo`. */
-  token: string;
+  /** Token with Contents read/write (and Metadata read) on `repo`. Or use `app`. */
+  token?: string | (() => Promise<string>);
+  /** A GitHub App installed on `repo`, instead of `token`. */
+  app?: GitHubAppOptions;
   /** Branch for the notes. Created from the default branch on the first save. Default `"annotations"`. */
   branch?: string;
   /** Folder for the notes in the branch. Default `"annotations"`. */
@@ -55,7 +57,20 @@ export interface GitHubStorageOptions {
   commitMessage?: (message: string, page: string) => string;
 }
 
+export interface GitHubAppOptions {
+  /** The App ID, on the app's General page. */
+  appId: string | number;
+  /** The app's private key: the `.pem` file, PKCS#1 or PKCS#8. Line breaks may be written as `\n`. */
+  privateKey: string;
+  /** The installation on `repo`. Looked up when omitted. */
+  installationId?: string | number;
+}
+
+/** Installation tokens of a GitHub App, limited to `repo` and renewed before they expire. */
+export function githubAppToken(options: GitHubAppOptions & { repo: string }): () => Promise<string>;
+
 export interface GitHubAuthOptions {
+  /** The OAuth app's client ID, or the GitHub App's. */
   clientId: string;
   clientSecret: string;
   /** A long random string that signs the session cookie. */
@@ -66,7 +81,8 @@ export interface GitHubAuthOptions {
    */
   writers?: 'collaborators' | 'anyone' | string[] | ((profile: { login: string; id: number }) => boolean | Promise<boolean>);
   repo?: string;
-  token?: string;
+  token?: string | (() => Promise<string>);
+  app?: GitHubAppOptions;
   /**
    * Seconds between checks that a signed-in user may still write, on saves and page loads.
    * `false` checks only at sign-in. Default 60.

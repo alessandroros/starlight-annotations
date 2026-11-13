@@ -63,14 +63,15 @@ export function timingSafeEqual(left, right) {
 }
 
 // A small REST client: JSON in and out, `null` for an allowed 404.
+// `headers` may be a function, for credentials that change (GitHub App).
 export function restClient({ base, headers, label }) {
-  const raw = (path, init = {}) =>
+  const raw = async (path, init = {}) =>
     fetch(`${base}${path}`, {
       ...init,
       headers: {
         Accept: 'application/json',
         'User-Agent': 'starlight-annotations',
-        ...headers,
+        ...(typeof headers === 'function' ? await headers() : headers),
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
       },
     });

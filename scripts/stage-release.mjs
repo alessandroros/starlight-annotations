@@ -4,10 +4,12 @@
 // Nothing reaches `npm install` without that human step.
 //
 // Runs on every push to main once there are no changesets left, so it skips
-// a version that is already published, and one that is already staged.
+// a version that is already published, and one that is already staged. Once
+// the approved version is live, the next run creates its GitHub release.
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { githubRelease } from './github-release.mjs';
 
 const dir = new URL('../packages/starlight-annotations/', import.meta.url);
 const { name, version } = JSON.parse(readFileSync(new URL('package.json', dir), 'utf8'));
@@ -23,6 +25,7 @@ function published() {
 
 if (published()) {
   console.log(`${id} is already published. Nothing to stage.`);
+  githubRelease(version);
   process.exit(0);
 }
 

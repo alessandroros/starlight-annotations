@@ -3,6 +3,9 @@ name: Release
 on:
   push:
     branches: [main]
+  # Run it by hand after approving a staged version, to create its GitHub
+  # release without waiting for the next push.
+  workflow_dispatch:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -18,6 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The GitHub release tags the commit that set the version.
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 24

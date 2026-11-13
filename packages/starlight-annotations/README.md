@@ -7,7 +7,7 @@
 
 Let readers highlight text and leave notes on your [Starlight](https://starlight.astro.build) docs. Notes are JSON files committed to your Git repository, not stored by a third-party service.
 
-**📖 [Documentation](https://alessandroros.github.io/starlight-annotations/) · ✨ [Live demo](https://alessandroros.github.io/starlight-annotations/guides/demo/)**
+**📖 [Documentation](https://alessandroros.github.io/starlight-annotations/) · ✨ [Live demo](https://alessandroros.github.io/starlight-annotations/guides/demo/) · 📋 [Changelog](https://alessandroros.github.io/starlight-annotations/changelog/)**
 
 ## Features
 
@@ -70,6 +70,10 @@ See [Store notes on GitHub](https://alessandroros.github.io/starlight-annotation
 On GitLab or Gitea/Forgejo, use `gitlab({ host, project, … })` or `gitea({ host, repo, … })` instead of `github(…)`: see [GitLab](https://alessandroros.github.io/starlight-annotations/guides/gitlab/) and [Gitea, Forgejo and Codeberg](https://alessandroros.github.io/starlight-annotations/guides/gitea/).
 
 No server? `starlightAnnotations({ backend: 'browser' })` keeps notes in each reader's browser.
+
+## 📋 Versions
+
+The package follows semantic versioning. While it is `0.x`, a minor version may change behavior or options: check the [changelog](https://alessandroros.github.io/starlight-annotations/changelog/) before upgrading.
 
 ## 📄 License
 

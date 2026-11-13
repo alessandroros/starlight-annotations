@@ -22,6 +22,7 @@ export default defineConfig({
         { label: 'Start here', items: ['getting-started', 'guides/demo'] },
         { label: 'Guides', items: ['guides/github', 'guides/gitlab', 'guides/gitea', 'guides/cloudflare', 'guides/other-hosts', 'guides/browser-notes'] },
         { label: 'Reference', items: ['reference/options', 'reference/server', 'reference/format', 'reference/security'] },
+        { label: 'Project', items: ['changelog'] },
       ],
       plugins: [starlightAnnotations({ backend: process.env.ANNOTATIONS_BACKEND === 'api' ? 'api' : 'browser' })],
     }),

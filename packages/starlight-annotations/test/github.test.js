@@ -1,6 +1,6 @@
 // The handler with GitHub storage and sign-in, against an in-memory GitHub.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createAnnotationsHandler, github } from '../src/server/index.js';
+import { createAnnotationsHandler, github, staticAuth } from '../src/server/index.js';
 
 const ORIGIN = 'https://docs.example';
 const options = { repo: 'o/r', token: 'server', clientId: 'cid', clientSecret: 'cs', sessionSecret: 'secret' };
@@ -197,6 +197,19 @@ describe('handler with GitHub', () => {
       expect(gh.state.commits).toHaveLength(0);
       quiet.mockRestore();
     });
+  });
+
+  it('lets a custom auth refuse with `allowed`, without a session to clear', async () => {
+    const auth = { ...staticAuth({ login: 'octo', id: 42 }), allowed: async () => false };
+    const handle = createAnnotationsHandler({ storage: github(options).storage, auth });
+    const page = await handle(new Request(`${ORIGIN}/_annotations/api?page=p`));
+    expect((await page.json()).user).toBeNull();
+    expect(page.headers.get('Set-Cookie')).toBeNull();
+    const write = await handle(
+      new Request(`${ORIGIN}/_annotations/api`, { method: 'POST', body: JSON.stringify({ page: 'p', change: { action: 'create', target: { exact: 'x' }, body: 'n' } }) }),
+    );
+    expect(write.status).toBe(403);
+    expect(await write.json()).toEqual({ error: 'You may no longer annotate these docs.', signedOut: true });
   });
 
   it('supports a list of writers and "anyone"', async () => {

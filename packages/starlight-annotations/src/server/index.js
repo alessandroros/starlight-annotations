@@ -53,7 +53,7 @@ export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX 
             canSignIn: Boolean(auth?.route),
           },
           200,
-          revoked ? { 'Set-Cookie': auth.clearSession } : {},
+          revoked && auth.clearSession ? { 'Set-Cookie': auth.clearSession } : {},
         );
       }
 

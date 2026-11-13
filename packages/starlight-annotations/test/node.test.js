@@ -27,6 +27,28 @@ describe('fsStorage', () => {
   });
 });
 
+describe('the overview route', () => {
+  it('lists the pages on disk and skips other files', async () => {
+    const { writeFile, mkdir } = await import('node:fs/promises');
+    const handle = createAnnotationsHandler({ storage: fsStorage({ dir }), auth: staticAuth({ login: 'a', name: 'A' }) });
+    expect(await (await handle(new Request('http://x/_annotations/api/all'))).json()).toEqual({ pages: [], mode: 'local' });
+    const save = (page) =>
+      handle(new Request('http://x/_annotations/api', { method: 'POST', body: JSON.stringify({ page, change: { action: 'create', target: { exact: 'x' }, body: 'n' } }) }));
+    await save('guides/x');
+    await save('index');
+    await mkdir(path.join(dir, 'notes'), { recursive: true });
+    await writeFile(path.join(dir, 'README.md'), 'x');
+    await writeFile(path.join(dir, 'empty.json'), JSON.stringify({ version: 1, page: 'empty', annotations: [] }));
+    const { pages } = await (await handle(new Request('http://x/_annotations/api/all'))).json();
+    expect(pages.map((entry) => entry.page)).toEqual(['guides/x', 'index']);
+  });
+
+  it('answers 501 for a storage that cannot list', async () => {
+    const handle = createAnnotationsHandler({ storage: { load: async () => ({ annotations: [] }), update: async () => ({}) } });
+    expect((await handle(new Request('http://x/_annotations/api/all'))).status).toBe(501);
+  });
+});
+
 describe('toNodeMiddleware', () => {
   it('serves the handler over node:http and passes other paths on', async () => {
     const handler = createAnnotationsHandler({ storage: fsStorage({ dir }), auth: staticAuth({ login: 'dev', name: 'Dev' }) });

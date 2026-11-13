@@ -12,6 +12,7 @@ starlightAnnotations({
   longQuote: 400,
   translations: {},
   storageKey: 'starlight-annotations',
+  overview: 'annotations',
   dev: { dir: '.annotations' },
 });
 ```
@@ -25,6 +26,7 @@ starlightAnnotations({
 | `longQuote` | `400` | Selections longer than this many characters are stored by their first and last 80 characters. |
 | `translations` | `{}` | Override UI strings per language: `{ it: { annotate: 'Commenta' } }`. English, Italian, German, French and Spanish are built in; other languages fall back to English. |
 | `storageKey` | `'starlight-annotations'` | `localStorage` key prefix for the `browser` backend. |
+| `overview` | `'annotations'` | Path of the page that lists every note on the site, relative to the base (so `/annotations/`). `false` leaves the page out. See [All notes on one page](/starlight-annotations/getting-started/#all-notes-on-one-page). |
 | `dev` | `{ dir: '.annotations' }` | The API served by `astro dev` for the `api` backend: notes go to `dir`, the author is `git config user.name` or `dev.user`. `false` turns it off. |
 
 The UI follows the page language (`<html lang>`), so multilingual Starlight sites work out of the box. Each language version of a page has its own notes.

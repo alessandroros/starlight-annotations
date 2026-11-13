@@ -8,7 +8,7 @@
 // Sign-in: an OAuth2 application on the server. Only people with write
 // access to the repository may annotate, unless `writers` says otherwise.
 
-import { filePath } from '../core.js';
+import { filePath, pageFromPath } from '../core.js';
 import { gitStorage } from './git-storage.js';
 import { oauthAuth } from './oauth.js';
 import { decodeText, encodeText, required, restClient } from './util.js';
@@ -58,6 +58,20 @@ export function giteaStorage({ host, repo, token, branch = 'annotations', dir = 
       // Stale sha, or the file was created by another save meanwhile.
       if (response.status === 409 || response.status === 422) return 'conflict';
       throw new Error(`Gitea ${sha ? 'PUT' : 'POST'} ${response.status}: ${detail}`);
+    },
+
+    async pages() {
+      const pages = [];
+      // The tree comes in pages; `truncated` says there is more.
+      for (let page = 1; page <= 50; page++) {
+        const tree = await api.get(`/repos/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=true&per_page=1000&page=${page}`, {
+          allow404: true,
+        });
+        if (!tree) break; // No notes branch yet.
+        for (const entry of tree.tree ?? []) if (entry.type === 'blob') pages.push(pageFromPath(entry.path, dir));
+        if (!tree.truncated) break;
+      }
+      return pages.filter(Boolean);
     },
 
     async createBranch() {

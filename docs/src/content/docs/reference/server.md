@@ -10,6 +10,7 @@ From `starlight-annotations/server`. Returns `(request: Request) => Promise<Resp
 | Route | |
 |---|---|
 | `GET {prefix}/api?page=<page>` | The notes of a page and the signed-in user. |
+| `GET {prefix}/api/all` | The notes of every page, for the overview page. `501` if the storage has no `list()`. |
 | `POST {prefix}/api` | `{ page, change }`: applies one change and returns the notes. Same-origin only. |
 | `GET {prefix}/login`, `/callback`, `/logout` | Handled by the auth, when it has sign-in pages. |
 

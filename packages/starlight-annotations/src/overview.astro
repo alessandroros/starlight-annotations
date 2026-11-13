@@ -1,0 +1,22 @@
+---
+// The overview page, added by the plugin at `/<overview>/`. The list itself
+// is drawn in the browser (client/overview.js), from the same API as the
+// notes panel; here only the page titles are known, from the content.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { getCollection } from 'astro:content';
+import config from 'virtual:starlight-annotations/config';
+import { strings } from './client/i18n.js';
+
+const T = strings(config.lang, config.translations);
+const docs = await getCollection('docs');
+const titles = Object.fromEntries(docs.map((entry) => [entry.id, entry.data.title]));
+---
+
+<StarlightPage frontmatter={{ title: T.allNotes, description: T.overviewDescription, tableOfContents: false, pagefind: false, editUrl: false }}>
+  <div class="annot-overview" data-titles={JSON.stringify(titles)}>
+    <p>{T.loading}</p>
+  </div>
+  <script>
+    import './client/overview.js';
+  </script>
+</StarlightPage>

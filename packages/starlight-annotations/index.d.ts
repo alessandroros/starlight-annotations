@@ -42,6 +42,22 @@ export type AnnotationStrings = {
   numbers: string;
   tasks: string;
   codeBlock: string;
+  allNotes: string;
+  overviewDescription: string;
+  statusOpen: string;
+  statusResolved: string;
+  statusAll: string;
+  everyone: string;
+  filter: string;
+  openOnPage: string;
+  oneReply: string;
+  replies: string;
+  noMatches: string;
+  overviewEmpty: string;
+  overviewUnavailable: string;
+  loading: string;
+  showing: string;
+  author: string;
 };
 
 export interface StarlightAnnotationsOptions {
@@ -62,6 +78,11 @@ export interface StarlightAnnotationsOptions {
   longQuote?: number;
   /** Override UI strings per language, e.g. `{ it: { annotate: 'Commenta' } }`. */
   translations?: Record<string, Partial<AnnotationStrings>>;
+  /**
+   * Path of the page listing every note on the site, relative to the site base.
+   * Default `"annotations"` (so `/annotations/`). `false` leaves it out.
+   */
+  overview?: string | false;
   /** localStorage key prefix for the `"browser"` backend. Default `"starlight-annotations"`. */
   storageKey?: string;
   /**

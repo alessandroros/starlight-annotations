@@ -18,6 +18,12 @@ function fakeGitHub({ profile = { login: 'octo', id: 42, name: 'Octo Cat' }, per
       return state.permission ? reply({ permission: state.permission }) : reply({}, 404);
     }
     if (url.pathname === '/repos/o/r') return reply({ default_branch: 'main' });
+    if (url.pathname === '/repos/o/r/git/trees/annotations') {
+      expect(url.searchParams.get('recursive')).toBe('1');
+      if (!state.branch) return reply({ message: 'Not Found' }, 404);
+      const blobs = [...state.files.keys()].map((path) => ({ path, type: 'blob' }));
+      return reply({ tree: [{ path: 'README.md', type: 'blob' }, { path: 'annotations', type: 'tree' }, ...blobs], truncated: false });
+    }
     if (url.pathname === '/repos/o/r/git/ref/heads/main') return reply({ object: { sha: 'main-sha' } });
     if (url.pathname === '/repos/o/r/git/refs') {
       state.branch = true;
@@ -210,6 +216,19 @@ describe('handler with GitHub', () => {
     );
     expect(write.status).toBe(403);
     expect(await write.json()).toEqual({ error: 'You may no longer annotate these docs.', signedOut: true });
+  });
+
+  it('lists every page with notes, for the overview', async () => {
+    const request = client(createAnnotationsHandler(github(options)));
+    expect(await (await request('/_annotations/api/all')).json()).toEqual({ pages: [], mode: 'github' });
+
+    await signIn(request);
+    await post(request, 'rfc/b', { action: 'create', target: { exact: 'x' }, body: 'n' });
+    await post(request, 'a', { action: 'create', target: { exact: 'x' }, body: 'n' });
+    await post(request, 'it/rfc/b', { action: 'create', target: { exact: 'x' }, body: 'n' });
+    const { pages } = await (await request('/_annotations/api/all')).json();
+    expect(pages.map((entry) => entry.page)).toEqual(['a', 'it/rfc/b', 'rfc/b']);
+    expect(pages[0].annotations[0]).toMatchObject({ body: 'n', author: { login: 'octo' } });
   });
 
   it('supports a list of writers and "anyone"', async () => {

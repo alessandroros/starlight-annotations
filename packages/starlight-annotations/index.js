@@ -18,7 +18,10 @@ export default function starlightAnnotations(options = {}) {
         // Starlight links customCss on every page, in dev and in the build.
         // (CSS imported by an injected script is bundled but not linked.)
         updateConfig({ customCss: [...(starlightConfig.customCss ?? []), 'starlight-annotations/styles.css'] });
-        addIntegration(annotationsIntegration(config));
+        // The overview page is not localized: it speaks the default language.
+        const locales = starlightConfig.locales ?? {};
+        const lang = locales[starlightConfig.defaultLocale ?? 'root']?.lang ?? locales.root?.lang ?? starlightConfig.defaultLocale ?? 'en';
+        addIntegration(annotationsIntegration({ ...config, lang }));
       },
     },
   };
@@ -34,9 +37,14 @@ function resolveOptions(options) {
   if (!Number.isInteger(longQuote) || longQuote < 100) {
     throw new Error('starlight-annotations: "longQuote" must be an integer of at least 100.');
   }
+  const overview = options.overview ?? 'annotations';
+  if (overview !== false && (typeof overview !== 'string' || !/^[a-z0-9][a-z0-9/_-]*$/i.test(overview.replace(/^\/+|\/+$/g, '')))) {
+    throw new Error('starlight-annotations: "overview" must be a path such as "annotations", or false.');
+  }
   return {
     backend,
     apiBase,
+    overview: overview === false ? false : overview.replace(/^\/+|\/+$/g, ''),
     content: options.content ?? '.sl-markdown-content',
     exclude: options.exclude ?? [],
     longQuote,
@@ -55,7 +63,7 @@ function annotationsIntegration(config) {
   return {
     name: 'starlight-annotations',
     hooks: {
-      'astro:config:setup'({ config: astroConfig, injectScript, updateConfig }) {
+      'astro:config:setup'({ config: astroConfig, injectRoute, injectScript, updateConfig }) {
         base = astroConfig.base.replace(/\/$/, '');
         root = fileURLToPath(astroConfig.root);
         updateConfig({
@@ -70,6 +78,9 @@ function annotationsIntegration(config) {
           },
         });
         injectScript('page', `import 'starlight-annotations/client';`);
+        if (config.overview) {
+          injectRoute({ pattern: `/${config.overview}`, entrypoint: fileURLToPath(new URL('./src/overview.astro', import.meta.url)), prerender: true });
+        }
       },
 
       // `astro dev` serves the same API from disk, so the feature works

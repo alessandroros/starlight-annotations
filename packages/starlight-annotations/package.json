@@ -1,6 +1,6 @@
 {
   "name": "starlight-annotations",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "🖍️ Let readers highlight text and leave notes on Starlight docs. Notes are committed to your Git repository on GitHub, GitLab, Gitea or Forgejo.",
   "license": "MIT",
   "author": "Alessandro Rosa",

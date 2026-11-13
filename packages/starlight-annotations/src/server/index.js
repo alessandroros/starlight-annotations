@@ -14,6 +14,7 @@
 import { AnnotationError, ROUTE_PREFIX, applyChange, checkPage, json } from '../core.js';
 
 export { github, githubAuth, githubStorage } from './github.js';
+export { githubAppToken } from './github-app.js';
 export { gitlab, gitlabAuth, gitlabStorage } from './gitlab.js';
 export { forgejo, gitea, giteaAuth, giteaStorage } from './gitea.js';
 export { AnnotationError } from '../core.js';

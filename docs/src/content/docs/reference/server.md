@@ -24,11 +24,12 @@ Returns `{ storage, auth }`: `githubStorage(options)` and `githubAuth(options)` 
 | Option | Default | |
 |---|---|---|
 | `repo` | | `owner/name` that stores the notes. |
-| `token` | | Contents read/write on `repo`. |
+| `token` | | Contents read/write on `repo`. Or use `app`. |
+| `app` | | A GitHub App instead of `token`: `{ appId, privateKey, installationId? }`. See [Use a GitHub App](/starlight-annotations/guides/github-app/). |
 | `branch` | `'annotations'` | Created from the default branch on the first save. |
 | `dir` | `'annotations'` | Folder in the branch. |
 | `commitMessage` | | `(message, page) => string`, to follow your commit convention. |
-| `clientId`, `clientSecret` | | The OAuth app. |
+| `clientId`, `clientSecret` | | The OAuth app, or the GitHub App's client ID and secret. |
 | `sessionSecret` | | Signs the session cookie. |
 | `writers` | `'collaborators'` | `'collaborators'` (write, maintain or admin access to `repo`), `'anyone'`, a list of logins, or `(profile) => boolean`. |
 | `recheck` | `60` | Seconds between checks that a signed-in reader may still write. `false` checks only at sign-in. See below. |
@@ -59,6 +60,10 @@ Returns `{ storage, auth }`: `githubStorage(options)` and `githubAuth(options)` 
 | `token` | | *repository: Read and write*. |
 
 `writers: 'collaborators'` means write, admin or owner permission. See [the Gitea guide](/starlight-annotations/guides/gitea/).
+
+## `githubAppToken({ appId, privateKey, repo, installationId? })`
+
+Returns `() => Promise<string>`: an installation token of a GitHub App, limited to `repo`, renewed before it expires. `github({ app })` uses it; call it yourself to reach the GitHub API with the same app elsewhere.
 
 ## `staticAuth(user)`
 

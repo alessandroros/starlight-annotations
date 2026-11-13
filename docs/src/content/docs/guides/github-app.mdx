@@ -1,0 +1,143 @@
+---
+title: Use a GitHub App
+description: One GitHub App for sign-in and storage, instead of an OAuth app and a personal token. Best for organizations.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+[Store notes on GitHub](/starlight-annotations/guides/github/) uses an **OAuth app** for sign-in and a **personal access token** for the server. A **GitHub App** replaces both:
+
+| | OAuth app + personal token | GitHub App |
+|---|---|---|
+| Things to create | Two (an OAuth app and a token) | One |
+| Belongs to | A person: if they leave, the token stops working | The app, not a person |
+| In an organization | The token waits for an owner to approve it, and expires | An owner installs the app once; it does not expire |
+| Access | Whatever the token was given | *Contents* and *Metadata* on the one repository it is installed on |
+| Server credential | The token itself, valid for months | A key that mints tokens valid for one hour, limited to `repo` |
+| Commits | Committed by the token's owner | Committed by the app (`your-app[bot]`); the reader is still the author |
+
+Use it when the notes repository belongs to an **organization**, or when the setup should not depend on one person's account.
+
+You still need the **session secret** of the GitHub guide, and the [choice of repository](/starlight-annotations/guides/github/#before-you-start-which-repository) is the same.
+
+## 1. Create the GitHub App
+
+Create it where the notes repository lives:
+
+- **Organization repository:** in the organization, at *Settings → Developer settings → GitHub Apps → New GitHub App*. This needs an owner or a *GitHub App manager* of the organization.
+- **Personal repository:** at [github.com/settings/apps/new](https://github.com/settings/apps/new).
+
+<Steps>
+
+1. **GitHub App name:** anything unique on GitHub, for example `acme-docs-annotations`. Readers see it on the sign-in page, and commits show it as `acme-docs-annotations[bot]`.
+
+2. **Homepage URL:** your docs site.
+
+3. **Callback URL:** `https://<your site><base>/_annotations/callback`, for example `https://docs.example.com/_annotations/callback`. Use **Add Callback URL** for more, such as a preview domain, or `http://localhost:8787/_annotations/callback` to test with `wrangler dev`.
+
+4. **Expire user authorization tokens:** leave it as it is. The plugin uses the reader's token once, at sign-in, and drops it.
+
+5. **Request user authorization (OAuth) during installation:** leave it **unticked**.
+
+6. **Webhook:** untick **Active**. The plugin needs no webhooks.
+
+7. **Permissions → Repository permissions:**
+   - **Contents: Read and write**, to read and commit notes.
+   - **Metadata: Read-only**, which GitHub selects by itself. It lets the server check who has write access.
+
+   Leave everything else, including all *Account permissions*, at *No access*.
+
+8. **Where can this GitHub App be installed?** **Only on this account**, if you created it in the account that owns the repository. If you created it in your personal account but the repository belongs to an organization, choose **Any account**, so the organization can install it.
+
+9. Press **Create GitHub App**.
+
+</Steps>
+
+## 2. Collect the credentials
+
+On the app's **General** page:
+
+<Steps>
+
+1. Copy the **App ID** (a number) and the **Client ID** (it starts with `Iv`). Neither is secret.
+
+2. Under **Client secrets**, press **Generate a new client secret** and copy it now: GitHub shows it once.
+
+3. Under **Private keys**, press **Generate a private key**. GitHub downloads a `.pem` file. It is the server credential: keep it like a password, and delete the file once it is stored as a secret.
+
+</Steps>
+
+## 3. Install the app on the notes repository
+
+<Steps>
+
+1. On the app's page, open **Install App** and press **Install** next to the account that owns the repository.
+
+2. Choose **Only select repositories** and pick the notes repository. Then **Install**.
+
+</Steps>
+
+<Aside type="note" title="Not an owner of the organization?">
+GitHub turns your **Install** into a request, and an organization owner approves it under *Settings → GitHub Apps*. It is the only step that needs them, and it happens once.
+</Aside>
+
+## 4. Configure your server
+
+Pass `app` instead of `token`, and the app's client ID and secret for sign-in:
+
+```js ins={5-9}
+import { createAnnotationsHandler, github } from 'starlight-annotations/server';
+
+const annotations = createAnnotationsHandler(
+  github({
+    repo: env.ANNOTATIONS_REPO,
+    app: {
+      appId: env.GITHUB_APP_ID,
+      privateKey: env.GITHUB_APP_PRIVATE_KEY,
+    },
+    clientId: env.GITHUB_CLIENT_ID,
+    clientSecret: env.GITHUB_CLIENT_SECRET,
+    sessionSecret: env.ANNOTATIONS_SECRET,
+  }),
+);
+```
+
+| Variable | Kind | Value |
+|---|---|---|
+| `ANNOTATIONS_REPO` | plain | `owner/name` of the notes repository |
+| `GITHUB_APP_ID` | plain | The App ID |
+| `GITHUB_CLIENT_ID` | plain | The app's Client ID (`Iv…`) |
+| `GITHUB_CLIENT_SECRET` | **secret** | The app's client secret |
+| `GITHUB_APP_PRIVATE_KEY` | **secret** | The whole `.pem` file, header lines included |
+| `ANNOTATIONS_SECRET` | **secret** | The [session secret](/starlight-annotations/guides/github/#3-create-the-session-secret) |
+
+On Cloudflare, store the key straight from the file, so its line breaks survive:
+
+```sh
+npx wrangler secret put GITHUB_APP_PRIVATE_KEY < acme-docs-annotations.2026-11-13.private-key.pem
+```
+
+Where a variable cannot hold line breaks, write them as `\n`: the plugin accepts that too. Both key formats work: the `BEGIN RSA PRIVATE KEY` file GitHub downloads, and `BEGIN PRIVATE KEY`.
+
+The server finds the installation by itself. To skip that lookup, pass `installationId`, the number at the end of the installation's settings URL.
+
+## 5. Check it works
+
+Sign in on the published site and save a note. Then, in the notes repository:
+
+- An `annotations` branch exists, with one file per annotated page.
+- The commit's **author** is the reader, and the **committer** is `your-app[bot]`. GitHub marks it *Verified*.
+
+## Troubleshooting
+
+| What you see | Why | What to do |
+|---|---|---|
+| **"The annotation service failed"**, and the logs say *the GitHub App … is not installed on owner/name* | The app is not installed on that repository, or the installation request is still waiting for an owner | Install it (step 3), or ask an owner to approve the request |
+| **"The annotation service failed"**, and the logs say *GitHub App token 401* | The App ID and the private key do not match, or the key was revoked | Check `GITHUB_APP_ID`; generate a new key and store it again |
+| **"&lt;login&gt; may not annotate these docs"** for someone with write access | The installation does not include the notes repository | In the installation settings, add the repository |
+| A **redirect_uri** error on GitHub | The callback URL is missing from the app | Add `https://<site><base>/_annotations/callback` (step 1) |
+| Logs mention *must be a PEM* | The key secret is not the `.pem` file | Store the whole file, `-----BEGIN` and `-----END` lines included |
+
+## Moving from a personal token
+
+Create and install the app, set the new variables, and replace `token` with `app`. Readers sign in again once, because the client ID changed. Then revoke the old personal token and delete the old OAuth app. Notes, the branch and the file format do not change.

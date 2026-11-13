@@ -36,6 +36,18 @@ export function filePath(page, dir = 'annotations') {
   return folder ? `${folder}/${checkPage(page)}.json` : `${checkPage(page)}.json`;
 }
 
+// The page of a stored file, or null for anything else in the folder.
+export function pageFromPath(file, dir = 'annotations') {
+  const folder = String(dir).replace(/^\/+|\/+$/g, '');
+  const prefix = folder ? `${folder}/` : '';
+  if (!file.startsWith(prefix) || !file.endsWith('.json')) return null;
+  try {
+    return checkPage(file.slice(prefix.length, -'.json'.length));
+  } catch {
+    return null;
+  }
+}
+
 export function emptyDocument(page) {
   return { version: FORMAT_VERSION, page, annotations: [] };
 }

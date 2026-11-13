@@ -12,6 +12,7 @@ import { AnnotationError, parseDocument, serializeDocument } from '../core.js';
  *   write: (page: string, text: string, version: string | undefined, message: string, user: object) =>
  *     Promise<'ok' | 'conflict' | 'missing-branch'>,
  *   createBranch: () => Promise<void>,
+ *   pages?: () => Promise<string[]>,
  * }} host
  */
 export function gitStorage(host) {
@@ -25,6 +26,14 @@ export function gitStorage(host) {
     async load(page) {
       return (await read(page)).doc;
     },
+    // Every page with a notes file, for the overview. One request to list the
+    // files, then one per page, a few at a time.
+    ...(host.pages && {
+      async list() {
+        const pages = await host.pages();
+        return mapLimit(pages, 6, async (page) => ({ page, annotations: (await read(page)).doc.annotations }));
+      },
+    }),
     async update(page, mutate, user) {
       let branchCreated = false;
       for (let attempt = 0; attempt < 4; attempt++) {
@@ -48,4 +57,17 @@ export function gitStorage(host) {
       throw new AnnotationError(409, 'Someone else is saving notes on this page. Try again.');
     },
   };
+}
+
+async function mapLimit(items, limit, run) {
+  const results = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await run(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
 }

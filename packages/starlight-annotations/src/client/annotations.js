@@ -9,6 +9,7 @@
 import config from 'virtual:starlight-annotations/config';
 import { createBackend } from './backend.js';
 import { strings } from './i18n.js';
+import { h, loadMarkdown, quoteText, renderMarkdown } from './shared.js';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 // Text the reader does not see as content: diagrams (rendered late), heading
@@ -20,49 +21,6 @@ const backend = createBackend(config, BASE, T);
 
 const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 const mod = mac ? '⌘' : 'Ctrl+';
-
-// ---- Markdown ----
-
-// The Markdown parser is most of the client's weight, so it loads on demand:
-// when the page has notes, or when the reader starts to write one. Until it
-// arrives a note shows as plain text, then it is filled in.
-let markdown = null;
-let markdownLoading = null;
-const waitingForMarkdown = new Map(); // element -> source
-
-function loadMarkdown() {
-  markdownLoading ??= Promise.all([import('micromark'), import('micromark-extension-gfm')]).then(([{ micromark }, { gfm, gfmHtml }]) => {
-    markdown = (source) => micromark(source, { extensions: [gfm()], htmlExtensions: [gfmHtml()] });
-    for (const [target, source] of waitingForMarkdown) if (target.isConnected) renderMarkdown(target, source);
-    waitingForMarkdown.clear();
-  }).catch(() => {
-    // Offline or blocked: notes stay as plain text, and the next note retries.
-    markdownLoading = null;
-  });
-  return markdownLoading;
-}
-
-function renderMarkdown(target, source) {
-  if (!markdown) {
-    target.textContent = source;
-    target.classList.add('annot-md-pending');
-    waitingForMarkdown.set(target, source);
-    loadMarkdown();
-    return target;
-  }
-  target.classList.remove('annot-md-pending');
-  target.innerHTML = markdown(source);
-  for (const link of target.querySelectorAll('a[href]')) {
-    // micromark empties unsafe URLs (javascript: and the like): show plain text.
-    if (!link.getAttribute('href')) {
-      link.replaceWith(...link.childNodes);
-      continue;
-    }
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer nofollow';
-  }
-  return target;
-}
 
 // Edits go through execCommand when it works, so Cmd+Z still undoes them.
 function insert(area, text) {
@@ -140,25 +98,14 @@ const TOOLS = [
 ];
 
 const root = document.querySelector(config.content);
-if (root instanceof HTMLElement) start(root);
+// The overview page lists notes; it is not annotated itself.
+if (root instanceof HTMLElement && !document.querySelector('.annot-overview')) start(root);
 
 function pageKey() {
   let path = decodeURIComponent(location.pathname);
   if (BASE && path.startsWith(BASE)) path = path.slice(BASE.length);
   path = path.replace(/\/index\.html$|\.html$/, '').replace(/^\/+|\/+$/g, '');
   return path || 'index';
-}
-
-function h(tag, attrs = {}, ...children) {
-  const el = document.createElement(tag);
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value === undefined || value === false) continue;
-    if (key.startsWith('on')) el.addEventListener(key.slice(2), value);
-    else if (key === 'class') el.className = value;
-    else el.setAttribute(key, value === true ? '' : value);
-  }
-  for (const child of children.flat()) if (child != null && child !== false) el.append(child);
-  return el;
 }
 
 // ---- Text index: the page text as one string, mapped back to DOM nodes ----
@@ -264,19 +211,6 @@ function selectorFor(text, start, end) {
   };
 }
 
-// What the panel shows: a long quote is cut in the middle.
-function quoteText(selector) {
-  const squash = (value) => value.replace(/\s+/g, ' ').trim();
-  if (selector.type === 'RangeSelector') {
-    // The stored edges are cut by length: drop the half words at the cut.
-    const head = squash(selector.startSelector.exact).replace(/\s+\S*$/, '');
-    const tail = squash(selector.endSelector.exact).replace(/^\S*\s+/, '');
-    return `${head} … ${tail}`;
-  }
-  const exact = squash(selector.exact);
-  return exact.length > 220 ? `${exact.slice(0, 130).trimEnd()} … ${exact.slice(-70).trimStart()}` : exact;
-}
-
 // ---- The feature ----
 
 async function start(root) {
@@ -312,6 +246,14 @@ async function start(root) {
   const count = h('span', { class: 'annot-count' });
   const toggle = h('button', { type: 'button', class: 'annot-toggle', onclick: () => setOpen(!drawer.classList.contains('open')) }, T.notes, count);
   const body = h('div', { class: 'annot-body' });
+  const resolvedBox = h('input', {
+    type: 'checkbox',
+    onchange: (event) => {
+      state.showResolved = event.target.checked;
+      paint();
+      render();
+    },
+  });
   const drawer = h(
     'aside',
     { class: 'annot-drawer', 'aria-label': T.notes },
@@ -322,14 +264,7 @@ async function start(root) {
       h(
         'label',
         { class: 'annot-resolved-toggle' },
-        h('input', {
-          type: 'checkbox',
-          onchange: (event) => {
-            state.showResolved = event.target.checked;
-            paint();
-            render();
-          },
-        }),
+        resolvedBox,
         T.showResolved,
       ),
       h('button', { type: 'button', class: 'annot-close', 'aria-label': T.close, onclick: () => setOpen(false) }, '×'),
@@ -630,6 +565,7 @@ async function start(root) {
     if (all.length === 0 && !state.pending) parts.push(h('p', { class: 'annot-empty' }, T.empty));
     parts.push(...anchored.map((thread) => threadCard(thread, true)));
     if (orphans.length) parts.push(h('h3', { class: 'annot-orphans' }, T.orphans), ...orphans.map((thread) => threadCard(thread, false)));
+    if (config.overview) parts.push(h('p', { class: 'annot-all' }, h('a', { href: `${BASE}/${config.overview}/` }, `${T.allNotes} →`)));
     body.replaceChildren(...parts.filter(Boolean));
   }
 
@@ -720,9 +656,26 @@ async function start(root) {
     }
   });
 
+  // "#annotation-<id>", from the overview page or a shared link: open that
+  // note, showing resolved notes if it is one, and scroll to its text.
+  function openFromHash() {
+    const id = decodeURIComponent(location.hash.match(/^#annotation-(.+)$/)?.[1] ?? '');
+    const item = id && state.annotations.find((annotation) => annotation.id === id);
+    if (!item) return;
+    const thread = (item.replyTo && state.annotations.find((annotation) => annotation.id === item.replyTo)) || item;
+    if (thread.resolved && !state.showResolved) {
+      state.showResolved = true;
+      resolvedBox.checked = true;
+    }
+    focusThread(thread.id, true);
+    if (item !== thread) flash(item.id);
+  }
+  window.addEventListener('hashchange', openFromHash);
+
   reanchor();
   paint();
   render();
+  openFromHash();
   // Fonts and late layout do not move text nodes, but a late script might.
   window.addEventListener('load', () => {
     reanchor();

@@ -9,7 +9,7 @@
 // project members with the Developer role or higher may annotate, unless
 // `writers` says otherwise.
 
-import { filePath } from '../core.js';
+import { filePath, pageFromPath } from '../core.js';
 import { gitStorage } from './git-storage.js';
 import { oauthAuth } from './oauth.js';
 import { decodeText, encodeText, required, restClient } from './util.js';
@@ -67,6 +67,20 @@ export function gitlabStorage({ host, project, token, branch = 'annotations', di
       // another save created the file a moment ago.
       if (response.status === 400 && /changed|already exists/i.test(detail)) return 'conflict';
       throw new Error(`GitLab ${lastCommitId ? 'PUT' : 'POST'} ${response.status}: ${detail}`);
+    },
+
+    async pages() {
+      const folder = String(dir).replace(/^\/+|\/+$/g, '');
+      const pages = [];
+      for (let page = 1; page <= 50; page++) {
+        const query = new URLSearchParams({ ref: branch, recursive: 'true', per_page: '100', page: String(page) });
+        if (folder) query.set('path', folder);
+        const entries = await api.get(`/projects/${id}/repository/tree?${query}`, { allow404: true });
+        if (!entries) break; // No notes branch, or no folder yet.
+        for (const entry of entries) if (entry.type === 'blob') pages.push(pageFromPath(entry.path, dir));
+        if (entries.length < 100) break;
+      }
+      return pages.filter(Boolean);
     },
 
     async createBranch() {

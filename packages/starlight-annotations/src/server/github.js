@@ -13,7 +13,7 @@
 // Server credentials: a token, or `app` ({ appId, privateKey }) for a GitHub
 // App installed on `repo` (see github-app.js).
 
-import { filePath } from '../core.js';
+import { filePath, pageFromPath } from '../core.js';
 import { githubAppToken } from './github-app.js';
 import { gitStorage } from './git-storage.js';
 import { oauthAuth } from './oauth.js';
@@ -82,6 +82,13 @@ export function githubStorage({ repo, token, app, branch = 'annotations', dir = 
       // 409: stale sha. 422 "sha wasn't supplied": the file was created meanwhile.
       if (response.status === 409 || response.status === 422) return 'conflict';
       throw new Error(`GitHub PUT ${response.status}: ${detail}`);
+    },
+
+    async pages() {
+      const tree = await api.get(`/repos/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`, { allow404: true });
+      if (!tree) return []; // No notes branch yet.
+      if (tree.truncated) console.warn('starlight-annotations: the notes branch is too large to list in one request; some pages are missing.');
+      return tree.tree.filter((entry) => entry.type === 'blob').map((entry) => pageFromPath(entry.path, dir)).filter(Boolean);
     },
 
     async createBranch() {

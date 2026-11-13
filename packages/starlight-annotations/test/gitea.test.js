@@ -20,6 +20,13 @@ function fakeGitea({ permission = 'write' } = {}) {
     if (url.pathname === '/api/v1/repos/ada/docs/collaborators/ada/permission')
       return permission ? reply({ permission }) : reply({ message: 'not found' }, 404);
     if (url.pathname === '/api/v1/repos/ada/docs') return reply({ default_branch: 'main' });
+    if (url.pathname === '/api/v1/repos/ada/docs/git/trees/annotations') {
+      if (!state.branch) return reply({ message: 'not found' }, 404);
+      // Two entries per page, so the test walks `truncated`.
+      const all = [...state.files.keys()].map((path) => ({ path, type: 'blob' }));
+      const page = Number(url.searchParams.get('page'));
+      return reply({ tree: all.slice((page - 1) * 2, page * 2), truncated: page * 2 < all.length });
+    }
     if (url.pathname === '/api/v1/repos/ada/docs/branches' && method === 'POST') {
       expect(JSON.parse(init.body)).toEqual({ new_branch_name: 'annotations', old_branch_name: 'main' });
       state.branch = true;
@@ -92,6 +99,15 @@ describe('handler with Gitea / Forgejo', () => {
     vi.stubGlobal('fetch', gt.fetch);
     const request = client(createAnnotationsHandler(gitea(options)));
     expect((await request.signIn()).callback.status).toBe(status);
+  });
+
+  it('lists every page with notes, following truncated trees', async () => {
+    const request = client(createAnnotationsHandler(gitea(options)));
+    expect((await (await request('/_annotations/api/all')).json()).pages).toEqual([]);
+    await request.signIn();
+    for (const page of ['c', 'a', 'b/x', 'd', 'e']) await request.post(page, { action: 'create', target: { exact: 'x' }, body: 'n' });
+    const { pages } = await (await request('/_annotations/api/all')).json();
+    expect(pages.map((entry) => entry.page)).toEqual(['a', 'b/x', 'c', 'd', 'e']);
   });
 
   it('exports forgejo as the same provider, and needs a host', () => {

@@ -20,6 +20,14 @@ function fakeGitLab({ accessLevel = 30 } = {}) {
     if (url.pathname === '/api/v4/projects/docs%2Fsite/members/all/7')
       return accessLevel ? reply({ access_level: accessLevel }) : reply({ message: '404 Not found' }, 404);
     if (url.pathname === '/api/v4/projects/docs%2Fsite') return reply({ default_branch: 'main' });
+    if (url.pathname === '/api/v4/projects/docs%2Fsite/repository/tree') {
+      expect(url.searchParams.get('ref')).toBe('annotations');
+      if (!state.branch) return reply({ message: '404 Tree Not Found' }, 404);
+      const all = [...state.files.keys()].filter((path) => path.startsWith(`${url.searchParams.get('path')}/`));
+      const size = Number(url.searchParams.get('per_page'));
+      const page = Number(url.searchParams.get('page'));
+      return reply(all.slice((page - 1) * size, page * size).map((path) => ({ path, type: 'blob' })));
+    }
     if (url.pathname === '/api/v4/projects/docs%2Fsite/repository/branches' && method === 'POST') {
       expect(url.searchParams.get('ref')).toBe('main');
       state.branch = true;
@@ -100,6 +108,16 @@ describe('handler with GitLab', () => {
     vi.stubGlobal('fetch', gl.fetch);
     const request = client(createAnnotationsHandler(gitlab(options)));
     expect((await request.signIn()).callback.status).toBe(status);
+  });
+
+  it('lists every page with notes, page after page', async () => {
+    const request = client(createAnnotationsHandler(gitlab(options)));
+    expect((await (await request('/_annotations/api/all')).json()).pages).toEqual([]);
+    await request.signIn();
+    for (let i = 0; i < 101; i++) await request.post(`p${String(i).padStart(3, '0')}`, { action: 'create', target: { exact: 'x' }, body: 'n' });
+    const { pages } = await (await request('/_annotations/api/all')).json();
+    expect(pages).toHaveLength(101);
+    expect(pages.at(-1).page).toBe('p100');
   });
 
   it('defaults to gitlab.com', async () => {

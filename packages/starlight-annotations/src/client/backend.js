@@ -35,6 +35,15 @@ function apiBackend(config, base) {
         return { ok: false, status: response.status, signedOut: Boolean(data.signedOut), error: data.error || `Error ${response.status}` };
       return { ok: true, ...data };
     },
+    // Every page with notes, or null when the API cannot list them.
+    async list() {
+      try {
+        const response = await fetch(`${api}/api/all`, { credentials: 'same-origin' });
+        return response.ok ? (await response.json()).pages : null;
+      } catch {
+        return null;
+      }
+    },
     loginUrl: () => `${api}/login?return=${here()}`,
     logoutUrl: () => `${api}/logout?return=${here()}`,
   };
@@ -53,6 +62,22 @@ function browserBackend(config, T) {
   return {
     async load(page) {
       return { annotations: read(page).annotations, user, mode: 'browser' };
+    },
+    async list() {
+      const prefix = `${config.storageKey}:`;
+      const pages = [];
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const name = localStorage.key(i);
+          if (!name?.startsWith(prefix)) continue;
+          const page = name.slice(prefix.length);
+          const { annotations } = read(page);
+          if (annotations.length) pages.push({ page, annotations });
+        }
+      } catch {
+        return null;
+      }
+      return pages.sort((a, b) => a.page.localeCompare(b.page));
     },
     async send(page, change) {
       try {

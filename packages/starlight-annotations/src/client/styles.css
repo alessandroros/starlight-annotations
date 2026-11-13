@@ -385,3 +385,61 @@ button.annot-ref:hover {
     display: none;
   }
 }
+
+/* Link from the panel to the overview page. */
+.annot-all {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+/* The overview page. */
+.annot-overview-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  font-size: var(--sl-text-sm);
+}
+.annot-overview-filters label {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  color: var(--sl-color-gray-2);
+}
+.annot-overview-filters :is(select, input) {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.4rem;
+  background: var(--sl-color-bg);
+  color: var(--sl-color-white);
+  font: inherit;
+}
+.annot-overview-filters input {
+  flex: 1 1 12rem;
+}
+.annot-overview-page h2 {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+.annot-overview-page h2 .annot-count {
+  font-size: var(--sl-text-xs);
+}
+.annot-overview-cards {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.annot-overview-card {
+  font-size: var(--sl-text-sm);
+}
+.annot-overview-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  margin-top: 0.6rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-xs);
+}

@@ -13,6 +13,8 @@ export interface AnnotationDocument {
 export interface Storage {
   mode?: string;
   load(page: string): Promise<AnnotationDocument>;
+  /** Every page that has a notes file, for the overview page. Optional. */
+  list?(): Promise<{ page: string; annotations: AnnotationDocument['annotations'] }[]>;
   update(
     page: string,
     mutate: (doc: AnnotationDocument) => { annotation: Record<string, unknown>; message: string },

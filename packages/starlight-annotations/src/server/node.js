@@ -2,9 +2,9 @@
 // IncomingMessage/ServerResponse to the Web-standard handler (used by the dev
 // server, and usable with Express, Fastify or plain node:http).
 
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { filePath, parseDocument, serializeDocument } from '../core.js';
+import { filePath, pageFromPath, parseDocument, serializeDocument } from '../core.js';
 
 /**
  * Notes as JSON files in a folder. Good for development, or for a Node
@@ -29,6 +29,17 @@ export function fsStorage({ dir }) {
   return {
     mode: 'local',
     load,
+    async list() {
+      let files;
+      try {
+        files = await readdir(dir, { recursive: true });
+      } catch (error) {
+        if (error.code === 'ENOENT') return [];
+        throw error;
+      }
+      const pages = files.map((file) => pageFromPath(file.split(path.sep).join('/'), '')).filter(Boolean);
+      return Promise.all(pages.map(async (page) => ({ page, annotations: (await load(page)).annotations })));
+    },
     update(page, mutate) {
       const run = async () => {
         const doc = await load(page);

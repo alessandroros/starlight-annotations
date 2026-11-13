@@ -8,6 +8,7 @@
 //
 // Routes, under `prefix` (default "/_annotations"):
 //   GET  /api?page=<page>   notes of a page, and who is signed in
+//   GET  /api/all           notes of every page, for the overview
 //   POST /api               { page, change } applies one change
 //   GET  /login /callback /logout   handled by the auth, when it has them
 
@@ -58,6 +59,13 @@ export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX 
         );
       }
 
+      if (route === '/api/all' && request.method === 'GET') {
+        if (!storage.list) return json({ error: 'This storage cannot list pages.' }, 501);
+        const pages = (await storage.list()).filter((entry) => entry.annotations.length > 0);
+        pages.sort((a, b) => a.page.localeCompare(b.page));
+        return json({ pages, mode: auth?.mode ?? storage.mode ?? 'api' });
+      }
+
       if (route === '/api' && request.method === 'POST') {
         const origin = request.headers.get('Origin');
         if (origin && origin !== url.origin) return json({ error: 'Cross-site request refused.' }, 403);
@@ -95,6 +103,7 @@ export function staticAuth(user) {
  * @typedef {{
  *   mode?: string,
  *   load(page: string): Promise<AnnotationDocument>,
+ *   list?(): Promise<{ page: string, annotations: object[] }[]>,
  *   update(page: string, mutate: (doc: AnnotationDocument) => { annotation: object, message: string }, user: User):
  *     Promise<{ annotation: object, annotations: object[] }>,
  * }} Storage

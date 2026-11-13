@@ -6,14 +6,17 @@ const ORIGIN = 'https://docs.example';
 const options = { repo: 'o/r', token: 'server', clientId: 'cid', clientSecret: 'cs', sessionSecret: 'secret' };
 
 function fakeGitHub({ profile = { login: 'octo', id: 42, name: 'Octo Cat' }, permission = 'write' } = {}) {
-  const state = { files: new Map(), branch: false, commits: [], conflicts: 0, sha: 0 };
+  const state = { files: new Map(), branch: false, commits: [], conflicts: 0, sha: 0, permission, down: false };
   const reply = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
   const fetch = vi.fn(async (input, init = {}) => {
     const url = new URL(String(input));
     const method = init.method ?? 'GET';
     if (url.pathname === '/login/oauth/access_token') return reply({ access_token: 'user-token' });
     if (url.pathname === '/user') return reply(profile);
-    if (url.pathname.endsWith('/permission')) return permission ? reply({ permission }) : reply({}, 404);
+    if (url.pathname.endsWith('/permission')) {
+      if (state.down) return reply({ message: 'Server Error' }, 500);
+      return state.permission ? reply({ permission: state.permission }) : reply({}, 404);
+    }
     if (url.pathname === '/repos/o/r') return reply({ default_branch: 'main' });
     if (url.pathname === '/repos/o/r/git/ref/heads/main') return reply({ object: { sha: 'main-sha' } });
     if (url.pathname === '/repos/o/r/git/refs') {
@@ -127,6 +130,73 @@ describe('handler with GitHub', () => {
     vi.stubGlobal('fetch', gh.fetch);
     const request = client(createAnnotationsHandler(github(options)));
     expect((await signIn(request)).status).toBe(status);
+  });
+
+  describe('access removed after sign-in', () => {
+    const note = { action: 'create', target: { exact: 'x' }, body: 'n' };
+    const permissionChecks = () => gh.fetch.mock.calls.filter(([input]) => String(input).endsWith('/permission')).length;
+
+    it('refuses the next write and ends the session', async () => {
+      const request = client(createAnnotationsHandler(github({ ...options, recheck: 0 })));
+      await signIn(request);
+      expect((await post(request, 'p', note)).status).toBe(200);
+
+      gh.state.permission = 'read';
+      const refused = await post(request, 'p', note);
+      expect(refused.status).toBe(403);
+      expect(await refused.json()).toEqual({ error: 'octo may not annotate these docs.', signedOut: true });
+      expect(refused.headers.get('Set-Cookie')).toMatch(/^annot_session=; .*Max-Age=0/);
+      expect(gh.state.commits).toHaveLength(1);
+      // The cookie is gone: the next write asks to sign in.
+      expect((await post(request, 'p', note)).status).toBe(401);
+    });
+
+    it('signs the reader out when they load a page', async () => {
+      const request = client(createAnnotationsHandler(github({ ...options, recheck: 0 })));
+      await signIn(request);
+      gh.state.permission = null;
+      const response = await request('/_annotations/api?page=p');
+      expect((await response.json()).user).toBeNull();
+      expect(response.headers.get('Set-Cookie')).toMatch(/^annot_session=; /);
+    });
+
+    it('asks the provider at most every `recheck` seconds', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        const request = client(createAnnotationsHandler(github(options)));
+        await signIn(request);
+        expect(permissionChecks()).toBe(1);
+
+        gh.state.permission = 'read';
+        expect((await post(request, 'p', note)).status).toBe(200); // still the answer from sign-in
+        expect(permissionChecks()).toBe(1);
+
+        vi.setSystemTime(Date.now() + 61_000);
+        expect((await post(request, 'p', note)).status).toBe(403);
+        expect(permissionChecks()).toBe(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('with `recheck: false`, checks only at sign-in', async () => {
+      const request = client(createAnnotationsHandler(github({ ...options, recheck: false })));
+      await signIn(request);
+      gh.state.permission = null;
+      expect((await post(request, 'p', note)).status).toBe(200);
+      expect(permissionChecks()).toBe(1);
+    });
+
+    it('keeps reading when the provider fails, and refuses to write', async () => {
+      const request = client(createAnnotationsHandler(github({ ...options, recheck: 0 })));
+      await signIn(request);
+      gh.state.down = true;
+      const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+      expect((await (await request('/_annotations/api?page=p')).json()).user).toEqual({ login: 'octo', name: 'Octo Cat' });
+      expect((await post(request, 'p', note)).status).toBe(502);
+      expect(gh.state.commits).toHaveLength(0);
+      quiet.mockRestore();
+    });
   });
 
   it('supports a list of writers and "anyone"', async () => {

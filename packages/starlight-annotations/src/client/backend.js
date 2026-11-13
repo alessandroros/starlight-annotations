@@ -31,7 +31,8 @@ function apiBackend(config, base) {
         body: JSON.stringify({ page, change }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) return { ok: false, status: response.status, error: data.error || `Error ${response.status}` };
+      if (!response.ok)
+        return { ok: false, status: response.status, signedOut: Boolean(data.signedOut), error: data.error || `Error ${response.status}` };
       return { ok: true, ...data };
     },
     loginUrl: () => `${api}/login?return=${here()}`,

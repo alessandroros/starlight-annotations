@@ -24,6 +24,7 @@ export { AnnotationError } from '../core.js';
 export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX }) {
   if (!storage) throw new Error('starlight-annotations: createAnnotationsHandler needs a storage.');
   const root = prefix.replace(/\/$/, '');
+  const stillAllowed = async (user) => (auth?.allowed ? auth.allowed(user) : true);
 
   return async function handleAnnotations(request) {
     const url = new URL(request.url);
@@ -39,13 +40,21 @@ export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX 
       if (route === '/api' && request.method === 'GET') {
         const page = checkPage(url.searchParams.get('page'));
         const doc = await storage.load(page);
-        const user = auth ? await auth.user(request) : null;
-        return json({
-          annotations: doc.annotations,
-          user: user && { login: user.login, name: user.name },
-          mode: auth?.mode ?? storage.mode ?? 'api',
-          canSignIn: Boolean(auth?.route),
-        });
+        let user = auth ? await auth.user(request) : null;
+        // Reading never fails on the access check: if the provider does not
+        // answer, the reader stays signed in and the next write asks again.
+        const revoked = user && (await stillAllowed(user).catch(() => true)) === false;
+        if (revoked) user = null;
+        return json(
+          {
+            annotations: doc.annotations,
+            user: user && { login: user.login, name: user.name },
+            mode: auth?.mode ?? storage.mode ?? 'api',
+            canSignIn: Boolean(auth?.route),
+          },
+          200,
+          revoked && auth.clearSession ? { 'Set-Cookie': auth.clearSession } : {},
+        );
       }
 
       if (route === '/api' && request.method === 'POST') {
@@ -53,6 +62,10 @@ export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX 
         if (origin && origin !== url.origin) return json({ error: 'Cross-site request refused.' }, 403);
         const user = auth ? await auth.user(request) : null;
         if (!user) return json({ error: 'Sign in first.' }, 401);
+        if (!(await stillAllowed(user))) {
+          const error = auth.noAccess ? auth.noAccess(user.login) : 'You may no longer annotate these docs.';
+          return json({ error, signedOut: true }, 403, auth.clearSession ? { 'Set-Cookie': auth.clearSession } : {});
+        }
         const { page, change } = await request.json();
         const result = await storage.update(checkPage(page), (doc) => applyChange(doc, change, user), user);
         return json(result);
@@ -88,5 +101,8 @@ export function staticAuth(user) {
  *   mode?: string,
  *   user(request: Request): Promise<User | null>,
  *   route?(route: string, request: Request, url: URL, prefix: string): Promise<Response | null>,
+ *   allowed?(user: User): Promise<boolean>,
+ *   noAccess?(login: string): string,
+ *   clearSession?: string,
  * }} Auth
  */

@@ -3,7 +3,9 @@
 //
 // The reader's access token is used once, at the callback, to read who they
 // are, and is then dropped. The session is an HMAC-signed cookie, so the
-// server keeps no state. `writers` decides who may write.
+// server keeps no state. `writers` decides who may write, at sign-in and
+// again while the session lasts (every `recheck` seconds), so removing
+// someone's access to the repository also ends their session.
 
 import {
   base64url,
@@ -19,6 +21,8 @@ import {
 const SESSION_COOKIE = 'annot_session';
 const STATE_COOKIE = 'annot_state';
 const SESSION_AGE = 60 * 60 * 24 * 30;
+const RECHECK = 60;
+const CACHE_SIZE = 500;
 
 /**
  * @param {{
@@ -31,6 +35,7 @@ const SESSION_AGE = 60 * 60 * 24 * 30;
  *   clientSecret: string,
  *   sessionSecret: string,
  *   cookieSecure?: boolean,
+ *   recheck?: number | false,
  *   writers?: 'collaborators' | 'anyone' | string[] | ((profile: object) => boolean | Promise<boolean>),
  *   profile: (userToken: string) => Promise<{ login: string, id: number, name?: string }>,
  *   canWrite: (profile: { login: string, id: number }) => Promise<boolean>,
@@ -40,6 +45,7 @@ const SESSION_AGE = 60 * 60 * 24 * 30;
 export function oauthAuth(options) {
   const { mode, where, authorizeUrl, tokenUrl, scope, clientId, clientSecret, sessionSecret, cookieSecure = true } = options;
   const writers = options.writers ?? 'collaborators';
+  const recheck = options.recheck ?? RECHECK;
   required({ clientId, clientSecret, sessionSecret }, where);
 
   const cookie = (name, value, maxAge, path = '/') =>
@@ -52,6 +58,17 @@ export function oauthAuth(options) {
     return options.canWrite(profile);
   }
 
+  // Answers of `mayWrite` for signed-in users, kept `recheck` seconds. It
+  // lives in memory, per server instance: a cold start just asks again.
+  const answers = new Map();
+  function remember(user, allowed) {
+    if (!recheck) return;
+    const key = `${user.id}:${user.login}`;
+    answers.delete(key);
+    answers.set(key, { allowed, until: Date.now() + recheck * 1000 });
+    if (answers.size > CACHE_SIZE) answers.delete(answers.keys().next().value);
+  }
+
   async function hmac(value) {
     const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(sessionSecret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
     return base64url(new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value))));
@@ -59,6 +76,19 @@ export function oauthAuth(options) {
 
   return {
     mode,
+    clearSession: cookie(SESSION_COOKIE, '', 0),
+
+    /** Whether a signed-in user may still write. Asks the provider at most every `recheck` seconds. */
+    async allowed(user) {
+      if (recheck === false) return true;
+      const saved = answers.get(`${user.id}:${user.login}`);
+      if (saved && saved.until > Date.now()) return saved.allowed;
+      const allowed = await mayWrite(user);
+      remember(user, allowed);
+      return allowed;
+    },
+
+    noAccess: options.noAccess,
 
     async user(request) {
       const value = readCookie(request, SESSION_COOKIE);
@@ -114,7 +144,9 @@ export function oauthAuth(options) {
         if (!userToken) return text('The sign-in was not confirmed. Try again.', 400, [clear]);
 
         const profile = await options.profile(userToken);
-        if (!(await mayWrite(profile))) return text(options.noAccess(profile.login), 403, [clear]);
+        const allowed = await mayWrite(profile);
+        remember(profile, allowed);
+        if (!allowed) return text(options.noAccess(profile.login), 403, [clear]);
 
         const body = base64url(
           new TextEncoder().encode(

@@ -93,7 +93,7 @@ A fine-grained token can target an organization only if you are a **member** of 
 
 ## 3. Create the session secret
 
-Any long random string. It signs the session cookie, so a reader stays signed in for 30 days without the server keeping any state.
+Any long random string. It signs the session cookie, so a reader stays signed in for 30 days without the server keeping any state. Their write access is still checked again every minute or so, so removing someone from the repository signs them out.
 
 ```sh
 openssl rand -hex 32

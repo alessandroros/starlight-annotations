@@ -24,6 +24,12 @@ export interface Auth {
   mode?: string;
   user(request: Request): Promise<User | null>;
   route?(route: string, request: Request, url: URL, prefix: string): Promise<Response | null>;
+  /** Whether a signed-in user may still write. Called before every save and on page loads. */
+  allowed?(user: User): Promise<boolean>;
+  /** The message for a user who may no longer write. */
+  noAccess?(login: string): string;
+  /** A `Set-Cookie` value that ends the session, sent with a refusal. */
+  clearSession?: string;
 }
 
 export interface HandlerOptions {
@@ -61,6 +67,11 @@ export interface GitHubAuthOptions {
   writers?: 'collaborators' | 'anyone' | string[] | ((profile: { login: string; id: number }) => boolean | Promise<boolean>);
   repo?: string;
   token?: string;
+  /**
+   * Seconds between checks that a signed-in user may still write, on saves and page loads.
+   * `false` checks only at sign-in. Default 60.
+   */
+  recheck?: number | false;
   /** Set to false only for plain-http local testing. Default true. */
   cookieSecure?: boolean;
 }
@@ -91,6 +102,11 @@ interface CommonAuthOptions {
    * `token`. `"anyone"` accepts every signed-in user.
    */
   writers?: 'collaborators' | 'anyone' | string[] | ((profile: { login: string; id: number }) => boolean | Promise<boolean>);
+  /**
+   * Seconds between checks that a signed-in user may still write, on saves and page loads.
+   * `false` checks only at sign-in. Default 60.
+   */
+  recheck?: number | false;
   /** Set to false only for plain-http local testing. Default true. */
   cookieSecure?: boolean;
 }

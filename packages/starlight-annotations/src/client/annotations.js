@@ -373,7 +373,8 @@ async function start(root) {
     const data = await backend.send(page, change);
     if (!data.ok) {
       state.error = data.error;
-      if (data.status === 401) state.user = null;
+      // Not signed in, or the session ended because access was removed.
+      if (data.status === 401 || data.signedOut) state.user = null;
       render();
       return null;
     }

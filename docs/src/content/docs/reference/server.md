@@ -31,7 +31,10 @@ Returns `{ storage, auth }`: `githubStorage(options)` and `githubAuth(options)` 
 | `clientId`, `clientSecret` | | The OAuth app. |
 | `sessionSecret` | | Signs the session cookie. |
 | `writers` | `'collaborators'` | `'collaborators'` (write, maintain or admin access to `repo`), `'anyone'`, a list of logins, or `(profile) => boolean`. |
+| `recheck` | `60` | Seconds between checks that a signed-in reader may still write. `false` checks only at sign-in. See below. |
 | `cookieSecure` | `true` | Set `false` only to test over plain http. |
+
+`writers` is checked at sign-in and again while the session lasts: when a reader saves a note or loads a page, the answer is reused for `recheck` seconds and then asked again. If their access was removed, the save is refused and they are signed out, so taking someone off the repository takes effect within a minute instead of when their 30-day session ends. If GitHub does not answer, pages still load and saves fail until it does. The answers are kept in memory, per server instance; with `'collaborators'`, each check is one API call made with `token`.
 
 ## `gitlab(options)` <small>experimental</small>
 
@@ -59,7 +62,7 @@ Returns `{ storage, auth }`: `githubStorage(options)` and `githubAuth(options)` 
 
 ## `staticAuth(user)`
 
-Everybody is `user`. For development, or behind your own login (Cloudflare Access, a VPN) where you know who the reader is. Write your own auth to read the identity from a header instead.
+Everybody is `user`. For development, or behind your own login (Cloudflare Access, a VPN) where you know who the reader is. Write your own auth to read the identity from a header instead: an object with `user(request)`, and optionally `allowed(user)`, which the handler calls before every save and on page loads to refuse and sign out someone who may no longer write.
 
 ## Node helpers
 

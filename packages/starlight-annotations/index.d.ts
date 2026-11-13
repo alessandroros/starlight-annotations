@@ -58,6 +58,7 @@ export type AnnotationStrings = {
   loading: string;
   showing: string;
   author: string;
+  seeAll: string;
 };
 
 export interface StarlightAnnotationsOptions {

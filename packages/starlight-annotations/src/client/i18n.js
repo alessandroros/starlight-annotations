@@ -59,6 +59,7 @@ const en = {
   loading: 'Loading notes…',
   showing: 'Status',
   author: 'Author',
+  seeAll: 'See the notes on other pages.',
 };
 
 const it = {
@@ -119,6 +120,7 @@ const it = {
   loading: 'Caricamento delle note…',
   showing: 'Stato',
   author: 'Autore',
+  seeAll: 'Guarda le note delle altre pagine.',
 };
 
 const de = {
@@ -179,6 +181,7 @@ const de = {
   loading: 'Notizen werden geladen…',
   showing: 'Status',
   author: 'Autor',
+  seeAll: 'Notizen auf anderen Seiten ansehen.',
 };
 
 const fr = {
@@ -239,6 +242,7 @@ const fr = {
   loading: 'Chargement des notes…',
   showing: 'Statut',
   author: 'Auteur',
+  seeAll: 'Voir les notes des autres pages.',
 };
 
 const es = {
@@ -299,6 +303,7 @@ const es = {
   loading: 'Cargando notas…',
   showing: 'Estado',
   author: 'Autor',
+  seeAll: 'Ver las notas de otras páginas.',
 };
 
 export const builtIn = { en, it, de, fr, es };

@@ -3,9 +3,9 @@ title: Server API
 description: createAnnotationsHandler, the GitHub storage and sign-in, and the Node helpers.
 ---
 
-## `createAnnotationsHandler({ storage, auth, prefix })`
+## `createAnnotationsHandler({ storage, auth, prefix, onChange, pageUrl })`
 
-From `starlight-annotations/server`. Returns `(request: Request) => Promise<Response | null>`.
+From `starlight-annotations/server`. Returns `(request: Request, context?) => Promise<Response | null>`. `context` is the platform's (`ctx` on Cloudflare Workers): with `waitUntil`, notifications run after the response.
 
 | Route | |
 |---|---|
@@ -13,6 +13,8 @@ From `starlight-annotations/server`. Returns `(request: Request) => Promise<Resp
 | `GET {prefix}/api/all` | The notes of every page, for the overview page. `501` if the storage has no `list()`. |
 | `POST {prefix}/api` | `{ page, change }`: applies one change and returns the notes. Same-origin only. |
 | `GET {prefix}/login`, `/callback`, `/logout` | Handled by the auth, when it has sign-in pages. |
+
+`onChange` (a function or a list) is called after every saved change; `pageUrl(page, request)` overrides the link in its event. See [Notifications](/starlight-annotations/guides/notifications/), with `slackWebhook(url)`, `teamsWebhook(url)` and `describeChange(event)`.
 
 `prefix` defaults to `/_annotations`. If your site has a `base`, include it: `prefix: '/docs/_annotations'`.
 

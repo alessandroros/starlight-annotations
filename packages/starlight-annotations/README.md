@@ -15,6 +15,7 @@ Let readers highlight text and leave notes on your [Starlight](https://starlight
 - 🗒️ **All notes on one page.** An overview of every note on the site, filtered by status, author or text, each one a click away from its passage.
 - 📌 **Anchored to the text.** W3C Web Annotation selectors: notes find their place again after edits, and long passages are stored by their start and end.
 - 🗂️ **Your repo, your data.** One file per page on a branch of its own; every note is a commit by its author. Works with **GitHub**, **GitLab** (gitlab.com or self-managed) and **Gitea / Forgejo** (including Codeberg).
+- 🔔 **Notifications.** Post new notes and replies to Slack, Microsoft Teams or email with one `onChange` option.
 - 🌍 **Runs anywhere.** The API is one Web-standard handler for Cloudflare Workers, Netlify, Vercel, Deno or Node. Or keep personal notes in the browser, with no server.
 - 🪶 **Light and safe.** Highlights use the CSS Custom Highlight API, so the page markup is never rewritten. Notes cannot inject HTML, and the Markdown parser loads only when it is needed.
 - 🌐 **Multilingual.** English, Italian, German, French and Spanish built in; the UI follows the page language.

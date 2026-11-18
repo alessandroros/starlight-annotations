@@ -13,22 +13,66 @@
 //   GET  /login /callback /logout   handled by the auth, when it has them
 
 import { AnnotationError, ROUTE_PREFIX, applyChange, checkPage, json } from '../core.js';
+import { changeEvent } from './notify.js';
 
 export { github, githubAuth, githubStorage } from './github.js';
 export { githubAppToken } from './github-app.js';
 export { gitlab, gitlabAuth, gitlabStorage } from './gitlab.js';
 export { forgejo, gitea, giteaAuth, giteaStorage } from './gitea.js';
 export { AnnotationError } from '../core.js';
+export { describeChange, slackWebhook, teamsWebhook } from './notify.js';
 
 /**
- * @param {{ storage: Storage, auth?: Auth, prefix?: string }} options
+ * @param {{
+ *   storage: Storage,
+ *   auth?: Auth,
+ *   prefix?: string,
+ *   onChange?: OnChange | OnChange[],
+ *   pageUrl?: (page: string, request: Request) => string,
+ * }} options
  */
-export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX }) {
+export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX, onChange, pageUrl }) {
   if (!storage) throw new Error('starlight-annotations: createAnnotationsHandler needs a storage.');
   const root = prefix.replace(/\/$/, '');
   const stillAllowed = async (user) => (auth?.allowed ? auth.allowed(user) : true);
+  const listeners = [onChange].flat().filter(Boolean);
 
-  return async function handleAnnotations(request) {
+  // After a save: tell every listener. A failing listener is logged and never
+  // fails the save. With `context.waitUntil` (Cloudflare Workers, Vercel,
+  // Netlify) the response does not wait for them.
+  function notify(event, context) {
+    if (!listeners.length) return undefined;
+    const task = Promise.all(
+      listeners.map((listener) =>
+        Promise.resolve()
+          .then(() => listener(event))
+          .catch((error) => console.error('starlight-annotations: onChange failed', error)),
+      ),
+    );
+    if (typeof context?.waitUntil === 'function') {
+      context.waitUntil(task);
+      return undefined;
+    }
+    return task;
+  }
+
+  // Where a note can be opened: the page the reader was on (the Referer of a
+  // same-origin save), else `pageUrl(page)`, else a guess without the base.
+  function linkTo(page, request, url, id) {
+    let base = pageUrl?.(page, request);
+    if (!base) {
+      try {
+        const referer = new URL(request.headers.get('Referer') ?? '');
+        if (referer.origin === url.origin) base = `${referer.origin}${referer.pathname}`;
+      } catch {
+        // No Referer, or not a URL.
+      }
+    }
+    base ??= `${url.origin}/${page === 'index' ? '' : `${page.replace(/\/index$/, '')}/`}`;
+    return id ? `${base}#annotation-${encodeURIComponent(id)}` : base;
+  }
+
+  return async function handleAnnotations(request, context) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith(`${root}/`)) return null;
     const route = url.pathname.slice(root.length);
@@ -77,6 +121,13 @@ export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX 
         }
         const { page, change } = await request.json();
         const result = await storage.update(checkPage(page), (doc) => applyChange(doc, change, user), user);
+        if (listeners.length) {
+          const deleted = change.action === 'delete';
+          const target = deleted ? (result.annotation.replyTo ?? null) : result.annotation.id;
+          const exists = target && result.annotations.some((item) => item.id === target);
+          const event = changeEvent({ change, result, page, user, url: linkTo(page, request, url, exists ? target : null) });
+          await notify(event, context);
+        }
         return json(result);
       }
 
@@ -115,4 +166,5 @@ export function staticAuth(user) {
  *   noAccess?(login: string): string,
  *   clearSession?: string,
  * }} Auth
+ * @typedef {(event: import('../../server').AnnotationEvent) => void | Promise<void>} OnChange
  */

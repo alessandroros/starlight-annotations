@@ -10,4 +10,5 @@ description: What the plugin does to keep notes and the site safe.
 - **Same-origin writes.** `POST` requests from another origin are refused.
 - **Who may write.** By default, people with write access to the repository (write, maintain or admin); read and triage access are refused. Access is checked again while the session lasts (every 60 seconds at most, see `recheck`), so removing someone from the repository signs them out. `writers: 'anyone'` lets every GitHub user commit to your notes branch: use it only if you are ready to moderate.
 - **Who may read.** The API answers everyone who can reach it, including the overview's list of all notes. Put it behind the same protection as your pages if they are private.
+- **Emails, only if asked.** With `emails: true` the reader's email is read at sign-in and stored on their notes encrypted (AES-GCM, key derived from the session secret), for notifications. It never appears in clear in the repository or in API responses.
 - **Limits.** A note is at most 5000 characters, a quote 2000 (80 per end for long passages), and page names are checked so they cannot leave the notes folder.

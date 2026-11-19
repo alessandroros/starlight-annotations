@@ -35,6 +35,7 @@ Returns `{ storage, auth }`: `githubStorage(options)` and `githubAuth(options)` 
 | `clientId`, `clientSecret` | | The OAuth app, or the GitHub App's client ID and secret. |
 | `sessionSecret` | | Signs the session cookie. |
 | `writers` | `'collaborators'` | `'collaborators'` (write, maintain or admin access to `repo`), `'anyone'`, a list of logins, or `(profile) => boolean`. |
+| `emails` | `false` | Read the reader's email at sign-in and store it, encrypted, on their notes, for [notifying the author of a note](/starlight-annotations/guides/notifications/#email-the-author-of-a-note). |
 | `recheck` | `60` | Seconds between checks that a signed-in reader may still write. `false` checks only at sign-in. See below. |
 | `cookieSecure` | `true` | Set `false` only to test over plain http. |
 

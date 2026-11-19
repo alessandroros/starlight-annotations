@@ -12,7 +12,7 @@
 //   POST /api               { page, change } applies one change
 //   GET  /login /callback /logout   handled by the auth, when it has them
 
-import { AnnotationError, ROUTE_PREFIX, applyChange, checkPage, json } from '../core.js';
+import { AnnotationError, ROUTE_PREFIX, applyChange, checkPage, json, withoutContact } from '../core.js';
 import { changeEvent } from './notify.js';
 
 export { github, githubAuth, githubStorage } from './github.js';
@@ -72,6 +72,16 @@ export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX,
     return id ? `${base}#annotation-${encodeURIComponent(id)}` : base;
   }
 
+  // Who opened the thread, when it is someone else, with their email when
+  // their note carries one and the auth can open it.
+  async function threadAuthor({ annotation, annotations }, user) {
+    const thread = annotation.replyTo ? annotations.find((item) => item.id === annotation.replyTo) : annotation;
+    const owner = thread?.author;
+    if (!owner || owner.login.toLowerCase() === user.login.toLowerCase()) return null;
+    const email = owner.contact && auth?.openContact ? await auth.openContact(owner.contact) : null;
+    return { login: owner.login, name: owner.name, email };
+  }
+
   return async function handleAnnotations(request, context) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith(`${root}/`)) return null;
@@ -93,7 +103,7 @@ export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX,
         if (revoked) user = null;
         return json(
           {
-            annotations: doc.annotations,
+            annotations: doc.annotations.map(withoutContact),
             user: user && { login: user.login, name: user.name },
             mode: auth?.mode ?? storage.mode ?? 'api',
             canSignIn: Boolean(auth?.route),
@@ -105,7 +115,9 @@ export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX,
 
       if (route === '/api/all' && request.method === 'GET') {
         if (!storage.list) return json({ error: 'This storage cannot list pages.' }, 501);
-        const pages = (await storage.list()).filter((entry) => entry.annotations.length > 0);
+        const pages = (await storage.list())
+          .filter((entry) => entry.annotations.length > 0)
+          .map((entry) => ({ ...entry, annotations: entry.annotations.map(withoutContact) }));
         pages.sort((a, b) => a.page.localeCompare(b.page));
         return json({ pages, mode: auth?.mode ?? storage.mode ?? 'api' });
       }
@@ -120,12 +132,16 @@ export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX,
           return json({ error, signedOut: true }, 403, auth.clearSession ? { 'Set-Cookie': auth.clearSession } : {});
         }
         const { page, change } = await request.json();
-        const result = await storage.update(checkPage(page), (doc) => applyChange(doc, change, user), user);
+        // With `emails`, new notes carry the writer's email, sealed.
+        const writer = auth?.sealContact && user.email ? { ...user, contact: await auth.sealContact(user.email) } : user;
+        const saved = await storage.update(checkPage(page), (doc) => applyChange(doc, change, writer), writer);
+        const result = { ...saved, annotation: withoutContact(saved.annotation), annotations: saved.annotations.map(withoutContact) };
         if (listeners.length) {
           const deleted = change.action === 'delete';
           const target = deleted ? (result.annotation.replyTo ?? null) : result.annotation.id;
           const exists = target && result.annotations.some((item) => item.id === target);
           const event = changeEvent({ change, result, page, user, url: linkTo(page, request, url, exists ? target : null) });
+          event.threadAuthor = await threadAuthor(saved, user);
           await notify(event, context);
         }
         return json(result);
@@ -165,6 +181,8 @@ export function staticAuth(user) {
  *   allowed?(user: User): Promise<boolean>,
  *   noAccess?(login: string): string,
  *   clearSession?: string,
+ *   sealContact?(email: string): Promise<string>,
+ *   openContact?(sealed: string): Promise<string | null>,
  * }} Auth
  * @typedef {(event: import('../../server').AnnotationEvent) => void | Promise<void>} OnChange
  */

@@ -39,6 +39,7 @@ One file per page: `annotations/<page>.json`, where `<page>` is the path of the 
 - **Targets** follow the [W3C Web Annotation](https://www.w3.org/TR/annotation-model/#text-quote-selector) selectors. A selection longer than `longQuote` is a `RangeSelector` with a `startSelector` and an `endSelector`, each a `TextQuoteSelector` of 80 characters.
 - **Replies** have `replyTo` (the first note of the thread) and, when they answer another reply, `inReplyTo`. Threads are flat.
 - **Bodies** are Markdown, stored as typed.
+- **Authors** are `{ login, name }`. With `emails: true` in the auth, notes and replies also carry `contact`: the writer's email, encrypted with the session secret. It is never sent to the browser.
 - **Resolved** threads have `resolved: true`, `resolvedBy` and `resolvedAt`.
 
 A note whose text cannot be found any more is listed under "Text no longer found on the page" until someone resolves or deletes it.

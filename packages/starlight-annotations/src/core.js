@@ -111,6 +111,8 @@ function selector(target) {
 export function applyChange(doc, change, user, now = new Date()) {
   const created = now.toISOString().replace(/\.\d{3}Z$/, 'Z');
   const author = { login: user.login, name: user.name || user.login };
+  // The writer's sealed email, kept on the notes they write (not on resolves).
+  const writer = user.contact ? { ...author, contact: user.contact } : author;
   const find = (id) => {
     const found = doc.annotations.find((item) => item.id === id);
     if (!found) throw new AnnotationError(404, 'Annotation not found.');
@@ -122,7 +124,7 @@ export function applyChange(doc, change, user, now = new Date()) {
       const annotation = {
         id: crypto.randomUUID(),
         created,
-        author,
+        author: writer,
         target: { selector: selector(change.target) },
         body: text(change.body, MAX_BODY, 'note'),
         resolved: false,
@@ -136,7 +138,7 @@ export function applyChange(doc, change, user, now = new Date()) {
       // "in reply to" reference in the panel.
       const parent = find(change.replyTo);
       if (parent.replyTo) throw new AnnotationError(400, 'Reply to the first note of the thread.');
-      const annotation = { id: crypto.randomUUID(), created, author, replyTo: parent.id, body: text(change.body, MAX_BODY, 'reply') };
+      const annotation = { id: crypto.randomUUID(), created, author: writer, replyTo: parent.id, body: text(change.body, MAX_BODY, 'reply') };
       if (change.inReplyTo && change.inReplyTo !== parent.id) {
         const answered = find(change.inReplyTo);
         if (answered.replyTo !== parent.id) throw new AnnotationError(400, 'That reply belongs to another thread.');
@@ -163,6 +165,13 @@ export function applyChange(doc, change, user, now = new Date()) {
     default:
       throw new AnnotationError(400, 'Unknown action.');
   }
+}
+
+// Notes as the browser gets them: without the sealed emails.
+export function withoutContact(annotation) {
+  if (!annotation?.author?.contact) return annotation;
+  const { contact, ...author } = annotation.author;
+  return { ...annotation, author };
 }
 
 export function json(data, status = 200, headers = {}) {

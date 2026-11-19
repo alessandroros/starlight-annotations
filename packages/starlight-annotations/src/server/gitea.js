@@ -101,7 +101,7 @@ export function giteaAuth({ host, repo, token, writers = 'collaborators', ...opt
     scope: 'read:user',
     async profile(userToken) {
       const user = await client(host, `Bearer ${userToken}`).get('/user');
-      return { login: user.login, id: user.id, name: user.full_name };
+      return { login: user.login, id: user.id, name: user.full_name, email: user.email || null };
     },
     async canWrite(profile) {
       const permission = await client(host, `token ${token}`).get(

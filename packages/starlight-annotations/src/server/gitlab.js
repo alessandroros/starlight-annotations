@@ -111,7 +111,7 @@ export function gitlabAuth({ host, project, token, writers = 'collaborators', ..
     scope: 'read_user',
     async profile(userToken) {
       const user = await client(host, userToken).get('/user');
-      return { login: user.username, id: user.id, name: user.name };
+      return { login: user.username, id: user.id, name: user.name, email: user.email || user.public_email || null };
     },
     // Developer (30) and above can push to unprotected branches.
     async canWrite(profile) {

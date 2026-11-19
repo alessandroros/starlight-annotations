@@ -119,9 +119,20 @@ export function githubAuth({ repo, token, app, writers = 'collaborators', ...opt
     authorizeUrl: 'https://github.com/login/oauth/authorize',
     tokenUrl: 'https://github.com/login/oauth/access_token',
     // No scope: the public profile is enough to know who the reader is.
-    async profile(userToken) {
-      const user = await client(userToken).get('/user');
-      return { login: user.login, id: user.id, name: user.name };
+    // With `emails`, `user:email` (an OAuth app; a GitHub App needs the
+    // account permission "Email addresses: Read-only" instead).
+    scope: options.emails ? 'user:email' : undefined,
+    async profile(userToken, { emails }) {
+      const api = client(userToken);
+      const user = await api.get('/user');
+      let email = null;
+      if (emails) {
+        // The primary verified address; without the permission, the public one.
+        const response = await api.raw('/user/emails');
+        const list = response.ok ? await response.json() : [];
+        email = list.find((entry) => entry.primary && entry.verified)?.email ?? user.email ?? null;
+      }
+      return { login: user.login, id: user.id, name: user.name, email };
     },
     // Only people who can push. `permission` is the legacy level: maintain
     // counts as write, triage as read. On a public repository GitHub answers

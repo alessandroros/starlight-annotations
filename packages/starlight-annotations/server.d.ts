@@ -34,15 +34,62 @@ export interface Auth {
   clearSession?: string;
 }
 
+export type AnnotationAction = 'create' | 'reply' | 'resolve' | 'reopen' | 'delete';
+
+/** What `onChange` receives after every saved change. */
+export interface AnnotationEvent {
+  action: AnnotationAction;
+  /** The page key, e.g. `"rfc/0002-user-data-model"` or `"it/guides/demo"`. */
+  page: string;
+  /** A link that opens the note on its page (the page alone after a thread is deleted). */
+  url: string;
+  /** Who made the change. */
+  user: { login: string; name: string };
+  /** The note created, answered, resolved, reopened or deleted. */
+  annotation: Record<string, any>;
+  /** The first note of the thread, with the quoted passage. */
+  thread: Record<string, any> | null;
+  /** For a reply: the message it answers. */
+  inReplyTo: Record<string, any> | null;
+  /** Logins of everyone else who wrote in the thread. */
+  participants: string[];
+  /** Logins mentioned with `@login` in a new note or reply, except the writer. */
+  mentions: string[];
+}
+
+export type OnChange = (event: AnnotationEvent) => void | Promise<void>;
+
 export interface HandlerOptions {
   storage: Storage;
   auth?: Auth;
   /** Path the handler answers on, including the site base. Default `"/_annotations"`. */
   prefix?: string;
+  /**
+   * Called after every saved change, e.g. to post to Slack or Teams. A failing listener is
+   * logged and never fails the save. Pass the platform context (`waitUntil`) to the handler
+   * so the response does not wait for it.
+   */
+  onChange?: OnChange | OnChange[];
+  /** The address of a page, for `event.url`. Default: the page the reader saved from. */
+  pageUrl?: (page: string, request: Request) => string;
 }
 
-/** A Web-standard handler. Resolves to `null` when the path is not under `prefix`. */
-export function createAnnotationsHandler(options: HandlerOptions): (request: Request) => Promise<Response | null>;
+/**
+ * A Web-standard handler. Resolves to `null` when the path is not under `prefix`. `context` is the
+ * platform's (Cloudflare `ctx`, Vercel, Netlify): with `waitUntil`, notifications run after the response.
+ */
+export function createAnnotationsHandler(
+  options: HandlerOptions,
+): (request: Request, context?: { waitUntil(promise: Promise<unknown>): void }) => Promise<Response | null>;
+
+/** Plain text for any channel: `title`, `quote`, `body`, and all of them with the link as `text`. */
+export function describeChange(event: AnnotationEvent): { title: string; quote: string; body: string; text: string };
+
+/** An `onChange` that posts to a Slack incoming webhook. */
+export function slackWebhook(webhookUrl: string, options?: { actions?: AnnotationAction[] }): OnChange;
+
+/** An `onChange` that posts an Adaptive Card to a Microsoft Teams Workflows webhook. */
+export function teamsWebhook(webhookUrl: string, options?: { actions?: AnnotationAction[] }): OnChange;
 
 export interface GitHubStorageOptions {
   /** `owner/name` of the repository that stores the notes. */

@@ -1,5 +1,12 @@
 # starlight-annotations
 
+## 0.6.0
+
+### Minor Changes
+
+- f1ec199: Adds `emails: true` to the GitHub, GitLab and Gitea auths, to email the author of a note when someone else answers or resolves it. The reader's email is read at sign-in (`user:email` on a GitHub OAuth app; the "Email addresses" account permission on a GitHub App) and stored on their notes encrypted with a key derived from the session secret, never in clear in the repository or in API responses. `onChange` events gain `threadAuthor: { login, name, email }`.
+- 3121a8f: Adds notifications: `createAnnotationsHandler({ ..., onChange })` calls a listener (or a list) after every saved change, with the action (`create`, `reply`, `resolve`, `reopen`, `delete`), the page, a link that opens the note, who made the change, the note and its thread, and the logins of the other participants and of `@mentions`. `slackWebhook(url)` and `teamsWebhook(url)` post to a Slack or Microsoft Teams channel, and `describeChange(event)` gives plain text for email or anything else. A failing listener never fails the save; pass the platform context (`handler(request, ctx)`) and it runs after the response with `waitUntil`.
+
 ## 0.5.1
 
 ### Patch Changes

@@ -34,6 +34,7 @@ export function changeEvent({ change, result, page, user, url }) {
     annotation,
     thread,
     inReplyTo,
+    threadAuthor: null, // Filled in by the handler: it can open sealed emails.
     participants: others(messages.map((item) => item.author?.login)),
     mentions: written ? others([...annotation.body.matchAll(MENTION)].map((match) => match[1])) : [],
   };

@@ -79,6 +79,41 @@ async function email(event) {
 }
 ```
 
+## Email the author of a note
+
+To tell the person who opened a note that someone answered it or resolved it, turn on `emails` in the auth:
+
+```js ins={3}
+github({
+  ...options,
+  emails: true,
+});
+```
+
+- **At sign-in** the reader is asked for their email address too. With a GitHub **OAuth app** the plugin asks for the `user:email` scope by itself. With a **GitHub App**, give it the account permission *Email addresses: Read-only* (*Permissions & events → Account permissions*). GitLab, Gitea and Forgejo already return it.
+- **Every new note and reply** stores its writer's email in the notes file, **encrypted** (AES-GCM, with a key derived from the session secret). The repository and its history only ever see an unreadable `contact` field, and the API never sends it to the browser.
+- **When someone else answers or resolves** a note, the event has `threadAuthor: { login, name, email }`, the person who opened it. It is `null` when they act on their own note.
+
+```js
+import { describeChange } from 'starlight-annotations/server';
+
+async function emailTheAuthor(event) {
+  if (!['reply', 'resolve'].includes(event.action) || !event.threadAuthor?.email) return;
+  const { title, text } = describeChange(event);
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: 'docs@example.com', to: [event.threadAuthor.email], subject: title, text }),
+  });
+}
+```
+
+Good to know:
+
+- **Changing the session secret** makes the stored emails unreadable: those notes simply stop sending emails (`email: null`); new notes work again.
+- **Notes written before** `emails` was turned on carry no email.
+- **Tell your readers.** Their email is stored, encrypted, so that they can be notified. Say so where they sign in, for example in your docs' privacy note.
+
 ## Reaching people
 
 The plugin knows readers by their login and name, not their email. The event lists the people concerned by login, so a map you keep yourself can reach them:
@@ -108,6 +143,7 @@ The person who made the change is never in either list.
 | `annotation` | The note created, answered, resolved, reopened or deleted |
 | `thread` | The first note of the thread, with the quoted passage in `thread.target` |
 | `inReplyTo` | For a reply, the message it answers |
+| `threadAuthor` | `{ login, name, email }` of who opened the thread, when it is someone else; `email` needs `emails: true` |
 | `participants`, `mentions` | Logins, see above |
 
 `url` is built from the page the reader saved from. To build it yourself, pass ``pageUrl: (page) => `https://docs.example.com/${page}/` `` to the handler.

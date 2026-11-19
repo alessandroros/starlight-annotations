@@ -2,7 +2,8 @@
 // every provider module.
 //
 // The reader's access token is used once, at the callback, to read who they
-// are, and is then dropped. The session is an HMAC-signed cookie, so the
+// are (and, with `emails`, their email), and is then dropped. The session
+// is an HMAC-signed cookie, so the
 // server keeps no state. `writers` decides who may write, at sign-in and
 // again while the session lasts (every `recheck` seconds), so removing
 // someone's access to the repository also ends their session.
@@ -37,7 +38,8 @@ const CACHE_SIZE = 500;
  *   cookieSecure?: boolean,
  *   recheck?: number | false,
  *   writers?: 'collaborators' | 'anyone' | string[] | ((profile: object) => boolean | Promise<boolean>),
- *   profile: (userToken: string) => Promise<{ login: string, id: number, name?: string }>,
+ *   emails?: boolean,
+ *   profile: (userToken: string, options: { emails: boolean }) => Promise<{ login: string, id: number, name?: string, email?: string | null }>,
  *   canWrite: (profile: { login: string, id: number }) => Promise<boolean>,
  *   noAccess: (login: string) => string,
  * }} options
@@ -46,6 +48,7 @@ export function oauthAuth(options) {
   const { mode, where, authorizeUrl, tokenUrl, scope, clientId, clientSecret, sessionSecret, cookieSecure = true } = options;
   const writers = options.writers ?? 'collaborators';
   const recheck = options.recheck ?? RECHECK;
+  const emails = Boolean(options.emails);
   required({ clientId, clientSecret, sessionSecret }, where);
 
   const cookie = (name, value, maxAge, path = '/') =>
@@ -69,6 +72,25 @@ export function oauthAuth(options) {
     if (answers.size > CACHE_SIZE) answers.delete(answers.keys().next().value);
   }
 
+  // A reader's email, sealed with AES-GCM under a key derived from the
+  // session secret, so it can sit in a notes file without being readable
+  // there. Changing the session secret makes old seals unreadable (null).
+  let contactKey;
+  function sealingKey() {
+    contactKey ??= crypto.subtle
+      .importKey('raw', new TextEncoder().encode(sessionSecret), 'HKDF', false, ['deriveKey'])
+      .then((base) =>
+        crypto.subtle.deriveKey(
+          { name: 'HKDF', hash: 'SHA-256', salt: new TextEncoder().encode('starlight-annotations'), info: new TextEncoder().encode('contact v1') },
+          base,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt', 'decrypt'],
+        ),
+      );
+    return contactKey;
+  }
+
   async function hmac(value) {
     const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(sessionSecret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
     return base64url(new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value))));
@@ -77,6 +99,27 @@ export function oauthAuth(options) {
   return {
     mode,
     clearSession: cookie(SESSION_COOKIE, '', 0),
+
+    ...(emails && {
+      async sealContact(email) {
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const sealed = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await sealingKey(), new TextEncoder().encode(email));
+        return `v1.${base64url(iv)}.${base64url(new Uint8Array(sealed))}`;
+      },
+    }),
+
+    // Opening also works with `emails` off, so turning it off later does not
+    // silence the notes written meanwhile.
+    async openContact(sealed) {
+      const [version, iv, data] = String(sealed ?? '').split('.');
+      if (version !== 'v1' || !iv || !data) return null;
+      try {
+        const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromBase64url(iv) }, await sealingKey(), fromBase64url(data));
+        return new TextDecoder().decode(plain);
+      } catch {
+        return null; // Another session secret, or tampered with.
+      }
+    },
 
     /** Whether a signed-in user may still write. Asks the provider at most every `recheck` seconds. */
     async allowed(user) {
@@ -143,14 +186,20 @@ export function oauthAuth(options) {
         const { access_token: userToken } = await exchange.json().catch(() => ({}));
         if (!userToken) return text('The sign-in was not confirmed. Try again.', 400, [clear]);
 
-        const profile = await options.profile(userToken);
+        const profile = await options.profile(userToken, { emails });
         const allowed = await mayWrite(profile);
         remember(profile, allowed);
         if (!allowed) return text(options.noAccess(profile.login), 403, [clear]);
 
         const body = base64url(
           new TextEncoder().encode(
-            JSON.stringify({ login: profile.login, id: profile.id, name: profile.name || profile.login, exp: Math.floor(Date.now() / 1000) + SESSION_AGE }),
+            JSON.stringify({
+              login: profile.login,
+              id: profile.id,
+              name: profile.name || profile.login,
+              ...(emails && profile.email ? { email: profile.email } : {}),
+              exp: Math.floor(Date.now() / 1000) + SESSION_AGE,
+            }),
           ),
         );
         const session = `${body}.${await hmac(body)}`;

@@ -32,6 +32,10 @@ export interface Auth {
   noAccess?(login: string): string;
   /** A `Set-Cookie` value that ends the session, sent with a refusal. */
   clearSession?: string;
+  /** Seals an email for a notes file (with `emails`). */
+  sealContact?(email: string): Promise<string>;
+  /** Opens a sealed email, or `null`. */
+  openContact?(sealed: string): Promise<string | null>;
 }
 
 export type AnnotationAction = 'create' | 'reply' | 'resolve' | 'reopen' | 'delete';
@@ -55,6 +59,8 @@ export interface AnnotationEvent {
   participants: string[];
   /** Logins mentioned with `@login` in a new note or reply, except the writer. */
   mentions: string[];
+  /** Who opened the thread, when it is not `user`. `email` needs `emails: true` in the auth. */
+  threadAuthor: { login: string; name: string; email: string | null } | null;
 }
 
 export type OnChange = (event: AnnotationEvent) => void | Promise<void>;
@@ -133,6 +139,11 @@ export interface GitHubAuthOptions {
   token?: string | (() => Promise<string>);
   app?: GitHubAppOptions;
   /**
+   * Read the reader's email at sign-in and store it, encrypted with the session secret, on their
+   * notes, so `onChange` can email the author of a note (`event.threadAuthor.email`). Default false.
+   */
+  emails?: boolean;
+  /**
    * Seconds between checks that a signed-in user may still write, on saves and page loads.
    * `false` checks only at sign-in. Default 60.
    */
@@ -167,6 +178,11 @@ interface CommonAuthOptions {
    * `token`. `"anyone"` accepts every signed-in user.
    */
   writers?: 'collaborators' | 'anyone' | string[] | ((profile: { login: string; id: number }) => boolean | Promise<boolean>);
+  /**
+   * Read the reader's email at sign-in and store it, encrypted with the session secret, on their
+   * notes, so `onChange` can email the author of a note (`event.threadAuthor.email`). Default false.
+   */
+  emails?: boolean;
   /**
    * Seconds between checks that a signed-in user may still write, on saves and page loads.
    * `false` checks only at sign-in. Default 60.

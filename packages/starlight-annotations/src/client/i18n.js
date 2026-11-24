@@ -69,6 +69,15 @@ const en = {
   fresh: 'New',
   freshCount: '{n} new',
   mentions: 'People',
+  kind: 'Type',
+  noKind: 'No type',
+  allKinds: 'All types',
+  kindQuestion: 'Question',
+  kindIssue: 'Problem',
+  kindProposal: 'Proposal',
+  kindDecision: 'Decision',
+  wholePage: 'Whole page',
+  pageNote: 'Note on this page',
 };
 
 const it = {
@@ -139,6 +148,15 @@ const it = {
   fresh: 'Nuova',
   freshCount: '{n} nuove',
   mentions: 'Persone',
+  kind: 'Tipo',
+  noKind: 'Nessun tipo',
+  allKinds: 'Tutti i tipi',
+  kindQuestion: 'Domanda',
+  kindIssue: 'Problema',
+  kindProposal: 'Proposta',
+  kindDecision: 'Decisione',
+  wholePage: 'Tutta la pagina',
+  pageNote: 'Nota sulla pagina',
 };
 
 const de = {
@@ -209,6 +227,15 @@ const de = {
   fresh: 'Neu',
   freshCount: '{n} neu',
   mentions: 'Personen',
+  kind: 'Art',
+  noKind: 'Ohne Art',
+  allKinds: 'Alle Arten',
+  kindQuestion: 'Frage',
+  kindIssue: 'Problem',
+  kindProposal: 'Vorschlag',
+  kindDecision: 'Entscheidung',
+  wholePage: 'Ganze Seite',
+  pageNote: 'Notiz zur Seite',
 };
 
 const fr = {
@@ -279,6 +306,15 @@ const fr = {
   fresh: 'Nouveau',
   freshCount: '{n} nouveaux',
   mentions: 'Personnes',
+  kind: 'Type',
+  noKind: 'Sans type',
+  allKinds: 'Tous les types',
+  kindQuestion: 'Question',
+  kindIssue: 'Problème',
+  kindProposal: 'Proposition',
+  kindDecision: 'Décision',
+  wholePage: 'Toute la page',
+  pageNote: 'Note sur la page',
 };
 
 const es = {
@@ -349,6 +385,15 @@ const es = {
   fresh: 'Nueva',
   freshCount: '{n} nuevas',
   mentions: 'Personas',
+  kind: 'Tipo',
+  noKind: 'Sin tipo',
+  allKinds: 'Todos los tipos',
+  kindQuestion: 'Pregunta',
+  kindIssue: 'Problema',
+  kindProposal: 'Propuesta',
+  kindDecision: 'Decisión',
+  wholePage: 'Toda la página',
+  pageNote: 'Nota sobre la página',
 };
 
 export const builtIn = { en, it, de, fr, es };

@@ -122,3 +122,29 @@ describe('edit and anchor', () => {
     expect(() => applyChange(doc, { action: 'anchor', id: thread.id, target: { exact: '' } }, bob)).toThrow(/Empty quote/);
   });
 });
+
+describe('kinds and whole-page notes', () => {
+  it('stores a kind on a thread, and lets its author change or remove it', () => {
+    const doc = emptyDocument('p');
+    const { annotation } = applyChange(doc, { action: 'create', target: { exact: 'x' }, body: 'n', kind: 'question' }, ann);
+    expect(annotation.kind).toBe('question');
+    applyChange(doc, { action: 'edit', id: annotation.id, body: 'n' }, ann);
+    expect(annotation.kind).toBe('question');
+    applyChange(doc, { action: 'edit', id: annotation.id, body: 'n', kind: 'decision' }, ann);
+    expect(annotation.kind).toBe('decision');
+    applyChange(doc, { action: 'edit', id: annotation.id, body: 'n', kind: null }, ann);
+    expect('kind' in annotation).toBe(false);
+    expect(() => applyChange(doc, { action: 'create', target: { exact: 'x' }, body: 'n', kind: 'rant' }, ann)).toThrow(/Unknown kind/);
+    expect(applyChange(doc, { action: 'create', target: { exact: 'x' }, body: 'n' }, ann).annotation.kind).toBeUndefined();
+  });
+  it('stores a note about the whole page without a selector', () => {
+    const doc = emptyDocument('p');
+    const { annotation } = applyChange(doc, { action: 'create', target: { type: 'Page' }, body: 'Missing a section' }, ann);
+    expect(annotation.target).toEqual({});
+    // It can be attached to a passage later, and back.
+    applyChange(doc, { action: 'anchor', id: annotation.id, target: { exact: 'words' } }, bob);
+    expect(annotation.target.selector.exact).toBe('words');
+    applyChange(doc, { action: 'anchor', id: annotation.id, target: { type: 'Page' } }, bob);
+    expect(annotation.target).toEqual({});
+  });
+});

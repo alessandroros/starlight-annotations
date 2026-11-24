@@ -57,8 +57,10 @@ export function quoteOf(thread) {
  */
 export function describeChange(event) {
   const who = event.user.name;
+  // "Ada added a question on …" when the note has a kind.
+  const what = { question: 'a question', issue: 'a problem', proposal: 'a proposal', decision: 'a decision' }[event.annotation?.kind] ?? 'a note';
   const title = {
-    create: `${who} added a note on ${event.page}`,
+    create: `${who} added ${what} on ${event.page}`,
     reply: `${who} replied on ${event.page}`,
     resolve: `${who} resolved a note on ${event.page}`,
     reopen: `${who} reopened a note on ${event.page}`,

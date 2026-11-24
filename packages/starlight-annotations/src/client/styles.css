@@ -201,6 +201,39 @@
 .annot-mentions li span {
   color: var(--sl-color-gray-3);
 }
+.annot-kind {
+  align-self: flex-start;
+  padding: 0 0.4rem;
+  border-radius: 0.25rem;
+  font-size: var(--sl-text-xs);
+  font-weight: 600;
+}
+.annot-kind-question {
+  background: var(--sl-color-blue-low);
+  color: var(--sl-color-blue-high);
+}
+.annot-kind-issue {
+  background: var(--sl-color-red-low);
+  color: var(--sl-color-red-high);
+}
+.annot-kind-proposal {
+  background: var(--sl-color-green-low);
+  color: var(--sl-color-green-high);
+}
+.annot-kind-decision {
+  background: var(--sl-color-purple-low);
+  color: var(--sl-color-purple-high);
+}
+.annot-whole-page {
+  border-left-style: dashed;
+  font-style: normal;
+}
+.annot-page-note {
+  align-self: flex-start;
+}
+.annot-kind-select {
+  margin-left: auto;
+}
 .annot-badge.annot-changed {
   margin-left: 0.4rem;
   background: var(--sl-color-orange-low);

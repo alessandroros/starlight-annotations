@@ -71,3 +71,10 @@ export function quoteText(selector) {
   const exact = squash(selector.exact);
   return exact.length > 220 ? `${exact.slice(0, 130).trimEnd()} … ${exact.slice(-70).trimStart()}` : exact;
 }
+
+export { KINDS } from '../core.js';
+
+// "question" -> T.kindQuestion
+export function kindLabel(kind, T) {
+  return T[`kind${kind[0].toUpperCase()}${kind.slice(1)}`] ?? kind;
+}

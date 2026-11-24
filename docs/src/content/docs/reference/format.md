@@ -41,5 +41,11 @@ One file per page: `annotations/<page>.json`, where `<page>` is the path of the 
 - **Bodies** are Markdown, stored as typed.
 - **Authors** are `{ login, name }`. With `emails: true` in the auth, notes and replies also carry `contact`: the writer's email, encrypted with the session secret. It is never sent to the browser.
 - **Resolved** threads have `resolved: true`, `resolvedBy` and `resolvedAt`.
+- **Edited** notes and replies have `edited`, the time of the last edit. Only the author can edit, and the panel shows "edited" next to the date.
+- **Moved** threads have `movedBy` and `movedAt`: someone attached them to another passage, and `target` is the new one.
 
-A note whose text cannot be found any more is listed under "Text no longer found on the page" until someone resolves or deletes it.
+## When the text changes
+
+A note whose text cannot be found any more is listed under "Text no longer found on the page" at the bottom of the panel, with the passage it quoted. Anyone signed in can press **Attach to other text**, select the passage the note is about now, and press **Attach here**: the thread keeps its messages and gets the new quote. Or resolve it, if the change answered it.
+
+The overview page finds these notes for you: it opens each page with open notes and looks for their quotes, then marks the ones it cannot find **Text changed**. The status filter has a **Text changed** entry for them alone.

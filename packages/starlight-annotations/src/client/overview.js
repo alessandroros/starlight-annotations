@@ -1,6 +1,7 @@
 // The overview page: every note on the site, grouped by page, with filters.
 // Read-only: a note opens on its page, where it can be answered or resolved.
 import config from 'virtual:starlight-annotations/config';
+import { anchor, buildIndex, skipSelector } from './anchoring.js';
 import { createBackend } from './backend.js';
 import { strings } from './i18n.js';
 import { h, quoteText, renderMarkdown } from './shared.js';
@@ -43,16 +44,20 @@ async function start(container) {
   // Filters live in the address, so a filtered view can be shared.
   const params = new URLSearchParams(location.search);
   const state = {
-    status: ['open', 'resolved', 'all'].includes(params.get('status')) ? params.get('status') : 'open',
+    status: ['open', 'changed', 'resolved', 'all'].includes(params.get('status')) ? params.get('status') : 'open',
     author: params.get('author') ?? '',
     text: params.get('q') ?? '',
   };
 
+  const changed = new Set(); // ids of open threads whose text is gone
   const counts = {
     open: threads.filter((entry) => !entry.thread.resolved).length,
+    changed: 0, // known once the pages are checked
     resolved: threads.filter((entry) => entry.thread.resolved).length,
     all: threads.length,
   };
+  const labels = { open: T.statusOpen, changed: T.textChanged, resolved: T.statusResolved, all: T.statusAll };
+  const option = (value) => `${labels[value]} (${counts[value]})`;
   const authors = new Map();
   for (const { thread, replies } of threads)
     for (const item of [thread, ...replies]) authors.set(item.author.login, item.author.name || item.author.login);
@@ -60,13 +65,7 @@ async function start(container) {
   const status = h(
     'select',
     { onchange: (event) => update({ status: event.target.value }) },
-    ['open', 'resolved', 'all'].map((value) =>
-      h(
-        'option',
-        { value, selected: state.status === value },
-        `${{ open: T.statusOpen, resolved: T.statusResolved, all: T.statusAll }[value]} (${counts[value]})`,
-      ),
-    ),
+    ['open', 'changed', 'resolved', 'all'].map((value) => h('option', { value, selected: state.status === value }, option(value))),
   );
   const author = h(
     'select',
@@ -109,6 +108,7 @@ async function start(container) {
   function matches({ thread, replies }) {
     if (state.status === 'open' && thread.resolved) return false;
     if (state.status === 'resolved' && !thread.resolved) return false;
+    if (state.status === 'changed' && (thread.resolved || !changed.has(thread.id))) return false;
     const messages = [thread, ...replies];
     if (state.author && !messages.some((item) => item.author.login === state.author)) return false;
     const text = state.text.trim().toLowerCase();
@@ -130,6 +130,7 @@ async function start(container) {
         ' · ',
         when,
         thread.resolved ? h('span', { class: 'annot-badge' }, T.resolved) : null,
+        !thread.resolved && changed.has(thread.id) ? h('span', { class: 'annot-badge annot-changed' }, T.textChanged) : null,
       ),
       renderMarkdown(h('div', { class: 'annot-text annot-md' }), thread.body),
       h(
@@ -169,4 +170,37 @@ async function start(container) {
   }
 
   render();
+
+  // Open notes whose quoted text is no longer on their page: fetch each page
+  // and look for the quotes, as the page itself does.
+  const skip = skipSelector(config.exclude);
+  const open = [...new Set(threads.filter((entry) => !entry.thread.resolved).map((entry) => entry.page))];
+  await mapLimit(open, 4, async (page) => {
+    const root = await fetchContent(pageUrl(page));
+    if (!root) return; // Not a page we can read: say nothing.
+    const index = buildIndex(root, skip);
+    for (const entry of threads)
+      if (entry.page === page && !entry.thread.resolved && !anchor(index, entry.thread.target.selector)) changed.add(entry.thread.id);
+  });
+  counts.changed = changed.size;
+  status.querySelector('option[value="changed"]').textContent = option('changed');
+  render();
+}
+
+async function fetchContent(url) {
+  try {
+    const response = await fetch(url, { credentials: 'same-origin' });
+    if (!response.ok) return null;
+    const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
+    return doc.querySelector(config.content);
+  } catch {
+    return null;
+  }
+}
+
+async function mapLimit(items, limit, run) {
+  const queue = [...items];
+  await Promise.all(Array.from({ length: Math.min(limit, queue.length) }, async () => {
+    while (queue.length) await run(queue.shift());
+  }));
 }

@@ -59,6 +59,12 @@ export type AnnotationStrings = {
   showing: string;
   author: string;
   seeAll: string;
+  edit: string;
+  edited: string;
+  move: string;
+  moveHint: string;
+  moveHere: string;
+  textChanged: string;
 };
 
 export interface StarlightAnnotationsOptions {

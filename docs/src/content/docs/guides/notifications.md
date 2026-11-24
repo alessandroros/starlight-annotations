@@ -56,7 +56,7 @@ Each change becomes an Adaptive Card with an **Open the note** button.
 
 ## Only some changes
 
-Both senders take the actions to post. To hear about new notes and replies but not resolve, reopen and delete:
+Both senders take the actions to post. By default they post everything except `edit` and `anchor`. To hear about new notes and replies but not resolve, reopen and delete:
 
 ```js
 onChange: slackWebhook(env.SLACK_WEBHOOK_URL, { actions: ['create', 'reply'] }),
@@ -136,11 +136,11 @@ The person who made the change is never in either list.
 
 | Field | |
 |---|---|
-| `action` | `create`, `reply`, `resolve`, `reopen` or `delete` |
+| `action` | `create`, `reply`, `resolve`, `reopen`, `edit` (the author changed a message), `anchor` (a thread moved to another passage) or `delete` |
 | `page` | The page key, e.g. `rfc/0002-user-data-model` |
 | `url` | Opens the note on its page. After a whole thread is deleted, the page alone |
 | `user` | `{ login, name }` of who made the change |
-| `annotation` | The note created, answered, resolved, reopened or deleted |
+| `annotation` | The note created, answered, resolved, reopened, edited, moved or deleted |
 | `thread` | The first note of the thread, with the quoted passage in `thread.target` |
 | `inReplyTo` | For a reply, the message it answers |
 | `threadAuthor` | `{ login, name, email }` of who opened the thread, when it is someone else; `email` needs `emails: true` |

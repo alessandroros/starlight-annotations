@@ -60,6 +60,12 @@ const en = {
   showing: 'Status',
   author: 'Author',
   seeAll: 'See the notes on other pages.',
+  edit: 'Edit',
+  edited: 'edited',
+  move: 'Attach to other text',
+  moveHint: 'Select the passage this note is about now, then press “Attach here”.',
+  moveHere: 'Attach here',
+  textChanged: 'Text changed',
 };
 
 const it = {
@@ -121,6 +127,12 @@ const it = {
   showing: 'Stato',
   author: 'Autore',
   seeAll: 'Guarda le note delle altre pagine.',
+  edit: 'Modifica',
+  edited: 'modificata',
+  move: 'Collega ad altro testo',
+  moveHint: 'Seleziona il passaggio a cui si riferisce ora la nota, poi premi “Collega qui”.',
+  moveHere: 'Collega qui',
+  textChanged: 'Testo cambiato',
 };
 
 const de = {
@@ -182,6 +194,12 @@ const de = {
   showing: 'Status',
   author: 'Autor',
   seeAll: 'Notizen auf anderen Seiten ansehen.',
+  edit: 'Bearbeiten',
+  edited: 'bearbeitet',
+  move: 'Mit anderem Text verknüpfen',
+  moveHint: 'Markiere die Stelle, um die es in dieser Notiz jetzt geht, und klicke auf „Hier verknüpfen“.',
+  moveHere: 'Hier verknüpfen',
+  textChanged: 'Text geändert',
 };
 
 const fr = {
@@ -243,6 +261,12 @@ const fr = {
   showing: 'Statut',
   author: 'Auteur',
   seeAll: 'Voir les notes des autres pages.',
+  edit: 'Modifier',
+  edited: 'modifiée',
+  move: 'Rattacher à un autre texte',
+  moveHint: 'Sélectionnez le passage dont parle maintenant la note, puis cliquez sur « Rattacher ici ».',
+  moveHere: 'Rattacher ici',
+  textChanged: 'Texte modifié',
 };
 
 const es = {
@@ -304,6 +328,12 @@ const es = {
   showing: 'Estado',
   author: 'Autor',
   seeAll: 'Ver las notas de otras páginas.',
+  edit: 'Editar',
+  edited: 'editada',
+  move: 'Vincular a otro texto',
+  moveHint: 'Selecciona el pasaje al que se refiere ahora la nota y pulsa «Vincular aquí».',
+  moveHere: 'Vincular aquí',
+  textChanged: 'Texto cambiado',
 };
 
 export const builtIn = { en, it, de, fr, es };

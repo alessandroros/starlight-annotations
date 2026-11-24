@@ -92,3 +92,33 @@ describe('resolve and delete', () => {
     expect(doc.annotations).toHaveLength(0);
   });
 });
+
+describe('edit and anchor', () => {
+  it('lets only the author edit a message, and marks it edited', () => {
+    const doc = emptyDocument('p');
+    const thread = create(doc);
+    const reply = applyChange(doc, { action: 'reply', replyTo: thread.id, body: 'r' }, bob).annotation;
+    expect(() => applyChange(doc, { action: 'edit', id: thread.id, body: 'x' }, bob)).toThrow(/Only the author can edit/);
+    expect(() => applyChange(doc, { action: 'edit', id: reply.id, body: '  ' }, bob)).toThrow(/Empty reply/);
+    const now = new Date('2026-11-24T10:00:00.123Z');
+    const { annotation, message } = applyChange(doc, { action: 'edit', id: reply.id, body: ' better ' }, bob, now);
+    expect(annotation).toMatchObject({ body: 'better', edited: '2026-11-24T10:00:00Z', author: { login: 'bob' } });
+    expect(message).toBe('docs(annotations): edit note on p');
+  });
+  it('keeps the sealed email of the writer when they edit', () => {
+    const doc = emptyDocument('p');
+    const thread = applyChange(doc, { action: 'create', target: { exact: 'x' }, body: 'n' }, { ...ann, contact: 'v1.a.b' }).annotation;
+    applyChange(doc, { action: 'edit', id: thread.id, body: 'm' }, { ...ann, contact: 'v1.c.d' });
+    expect(thread.author.contact).toBe('v1.a.b');
+  });
+  it('moves a thread to another passage, by anyone who can write', () => {
+    const doc = emptyDocument('p');
+    const thread = create(doc);
+    const reply = applyChange(doc, { action: 'reply', replyTo: thread.id, body: 'r' }, bob).annotation;
+    const { annotation } = applyChange(doc, { action: 'anchor', id: thread.id, target: { exact: 'new words', prefix: 'the ' } }, bob);
+    expect(annotation.target.selector).toEqual({ type: 'TextQuoteSelector', exact: 'new words', prefix: 'the ', suffix: '' });
+    expect(annotation).toMatchObject({ movedBy: { login: 'bob', name: 'Bob' }, movedAt: expect.any(String), body: 'note' });
+    expect(() => applyChange(doc, { action: 'anchor', id: reply.id, target: { exact: 'x' } }, bob)).toThrow(/Only a thread/);
+    expect(() => applyChange(doc, { action: 'anchor', id: thread.id, target: { exact: '' } }, bob)).toThrow(/Empty quote/);
+  });
+});

@@ -4,6 +4,7 @@ import config from 'virtual:starlight-annotations/config';
 import { anchor, buildIndex, skipSelector } from './anchoring.js';
 import { createBackend } from './backend.js';
 import { strings } from './i18n.js';
+import { isNew, rememberPeople, seenTimes } from './memory.js';
 import { h, quoteText, renderMarkdown } from './shared.js';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -36,6 +37,11 @@ async function start(container) {
         replies: annotations.filter((item) => item.replyTo === thread.id),
       })),
   );
+  // People for @mention suggestions, and what is new since each page was
+  // last opened in this browser.
+  rememberPeople(config.storageKey, pages.flatMap((entry) => entry.annotations));
+  const seen = seenTimes(config.storageKey);
+  for (const entry of threads) entry.fresh = [entry.thread, ...entry.replies].some((item) => isNew(item, seen[entry.page] ?? null));
   if (threads.length === 0) {
     container.replaceChildren(h('p', {}, T.overviewEmpty));
     return;
@@ -44,7 +50,7 @@ async function start(container) {
   // Filters live in the address, so a filtered view can be shared.
   const params = new URLSearchParams(location.search);
   const state = {
-    status: ['open', 'changed', 'resolved', 'all'].includes(params.get('status')) ? params.get('status') : 'open',
+    status: ['open', 'new', 'changed', 'resolved', 'all'].includes(params.get('status')) ? params.get('status') : 'open',
     author: params.get('author') ?? '',
     text: params.get('q') ?? '',
   };
@@ -52,11 +58,12 @@ async function start(container) {
   const changed = new Set(); // ids of open threads whose text is gone
   const counts = {
     open: threads.filter((entry) => !entry.thread.resolved).length,
+    new: threads.filter((entry) => entry.fresh).length,
     changed: 0, // known once the pages are checked
     resolved: threads.filter((entry) => entry.thread.resolved).length,
     all: threads.length,
   };
-  const labels = { open: T.statusOpen, changed: T.textChanged, resolved: T.statusResolved, all: T.statusAll };
+  const labels = { open: T.statusOpen, new: T.fresh, changed: T.textChanged, resolved: T.statusResolved, all: T.statusAll };
   const option = (value) => `${labels[value]} (${counts[value]})`;
   const authors = new Map();
   for (const { thread, replies } of threads)
@@ -65,7 +72,7 @@ async function start(container) {
   const status = h(
     'select',
     { onchange: (event) => update({ status: event.target.value }) },
-    ['open', 'changed', 'resolved', 'all'].map((value) => h('option', { value, selected: state.status === value }, option(value))),
+    ['open', 'new', 'changed', 'resolved', 'all'].map((value) => h('option', { value, selected: state.status === value }, option(value))),
   );
   const author = h(
     'select',
@@ -105,7 +112,8 @@ async function start(container) {
     render();
   }
 
-  function matches({ thread, replies }) {
+  function matches({ thread, replies, fresh }) {
+    if (state.status === 'new' && !fresh) return false;
     if (state.status === 'open' && thread.resolved) return false;
     if (state.status === 'resolved' && !thread.resolved) return false;
     if (state.status === 'changed' && (thread.resolved || !changed.has(thread.id))) return false;
@@ -116,7 +124,7 @@ async function start(container) {
     return [quoteText(thread.target.selector), ...messages.map((item) => item.body)].some((value) => value.toLowerCase().includes(text));
   }
 
-  function card({ page, thread, replies }) {
+  function card({ page, thread, replies, fresh }) {
     const when = new Date(thread.created).toLocaleString(document.documentElement.lang || undefined, { dateStyle: 'medium', timeStyle: 'short' });
     const last = replies.at(-1);
     return h(
@@ -130,6 +138,7 @@ async function start(container) {
         ' · ',
         when,
         thread.resolved ? h('span', { class: 'annot-badge' }, T.resolved) : null,
+        fresh ? h('span', { class: 'annot-badge annot-fresh-label' }, T.fresh) : null,
         !thread.resolved && changed.has(thread.id) ? h('span', { class: 'annot-badge annot-changed' }, T.textChanged) : null,
       ),
       renderMarkdown(h('div', { class: 'annot-text annot-md' }), thread.body),

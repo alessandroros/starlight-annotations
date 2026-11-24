@@ -161,6 +161,46 @@
   background: var(--sl-color-gray-5);
   font-size: var(--sl-text-xs);
 }
+.annot-fresh-count {
+  padding: 0 0.4em;
+  border-radius: 999px;
+  background: var(--sl-color-blue-low);
+  color: var(--sl-color-blue-high);
+  font-size: var(--sl-text-xs);
+}
+.annot-message.annot-fresh {
+  border-left: 3px solid var(--sl-color-blue);
+  padding-left: 0.5rem;
+}
+.annot-fresh-label {
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  border-radius: 0.25rem;
+  background: var(--sl-color-blue-low);
+  color: var(--sl-color-blue-high);
+  font-size: var(--sl-text-xs);
+}
+.annot-mentions {
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 0.4rem;
+  background: var(--sl-color-bg);
+  font-size: var(--sl-text-sm);
+}
+.annot-mentions li {
+  margin: 0;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+.annot-mentions li[aria-selected='true'] {
+  background: var(--sl-color-accent-low);
+}
+.annot-mentions li span {
+  color: var(--sl-color-gray-3);
+}
 .annot-badge.annot-changed {
   margin-left: 0.4rem;
   background: var(--sl-color-orange-low);

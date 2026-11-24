@@ -66,6 +66,9 @@ const en = {
   moveHint: 'Select the passage this note is about now, then press “Attach here”.',
   moveHere: 'Attach here',
   textChanged: 'Text changed',
+  fresh: 'New',
+  freshCount: '{n} new',
+  mentions: 'People',
 };
 
 const it = {
@@ -133,6 +136,9 @@ const it = {
   moveHint: 'Seleziona il passaggio a cui si riferisce ora la nota, poi premi “Collega qui”.',
   moveHere: 'Collega qui',
   textChanged: 'Testo cambiato',
+  fresh: 'Nuova',
+  freshCount: '{n} nuove',
+  mentions: 'Persone',
 };
 
 const de = {
@@ -200,6 +206,9 @@ const de = {
   moveHint: 'Markiere die Stelle, um die es in dieser Notiz jetzt geht, und klicke auf „Hier verknüpfen“.',
   moveHere: 'Hier verknüpfen',
   textChanged: 'Text geändert',
+  fresh: 'Neu',
+  freshCount: '{n} neu',
+  mentions: 'Personen',
 };
 
 const fr = {
@@ -267,6 +276,9 @@ const fr = {
   moveHint: 'Sélectionnez le passage dont parle maintenant la note, puis cliquez sur « Rattacher ici ».',
   moveHere: 'Rattacher ici',
   textChanged: 'Texte modifié',
+  fresh: 'Nouveau',
+  freshCount: '{n} nouveaux',
+  mentions: 'Personnes',
 };
 
 const es = {
@@ -334,6 +346,9 @@ const es = {
   moveHint: 'Selecciona el pasaje al que se refiere ahora la nota y pulsa «Vincular aquí».',
   moveHere: 'Vincular aquí',
   textChanged: 'Texto cambiado',
+  fresh: 'Nueva',
+  freshCount: '{n} nuevas',
+  mentions: 'Personas',
 };
 
 export const builtIn = { en, it, de, fr, es };

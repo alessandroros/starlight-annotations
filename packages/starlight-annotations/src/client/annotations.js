@@ -10,6 +10,8 @@ import config from 'virtual:starlight-annotations/config';
 import { createBackend } from './backend.js';
 import { anchor, buildIndex as indexText, skipSelector } from './anchoring.js';
 import { strings } from './i18n.js';
+import { isNew, knownPeople, markSeen, rememberPeople, seenTimes } from './memory.js';
+import { attachMentions } from './mentions.js';
 import { h, loadMarkdown, quoteText, renderMarkdown } from './shared.js';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -177,6 +179,15 @@ async function start(root) {
     error: '',
   };
   const supportsHighlights = 'highlights' in CSS && typeof Highlight === 'function';
+  // Messages from others since the reader last looked at this page's notes
+  // are "new" for as long as the page stays open.
+  const since = seenTimes(config.storageKey)[page] ?? null;
+  const remember = () => {
+    markSeen(config.storageKey, page, state.annotations);
+    rememberPeople(config.storageKey, state.annotations);
+  };
+  remember();
+  const fresh = (item) => isNew(item, since, state.user?.login);
 
   const ui = h('div', { class: 'annot-ui' });
   const selectButton = h(
@@ -191,7 +202,8 @@ async function start(root) {
     T.annotate,
   );
   const count = h('span', { class: 'annot-count' });
-  const toggle = h('button', { type: 'button', class: 'annot-toggle', onclick: () => setOpen(!drawer.classList.contains('open')) }, T.notes, count);
+  const freshCount = h('span', { class: 'annot-fresh-count', hidden: true });
+  const toggle = h('button', { type: 'button', class: 'annot-toggle', onclick: () => setOpen(!drawer.classList.contains('open')) }, T.notes, count, freshCount);
   const body = h('div', { class: 'annot-body' });
   // The page with every note on the site, when the plugin adds it.
   // In the reader's locale, like the rest of the page.
@@ -268,6 +280,7 @@ async function start(root) {
       return null;
     }
     state.annotations = data.annotations;
+    remember();
     reanchor();
     paint();
     render();
@@ -296,12 +309,29 @@ async function start(root) {
     const edited = item.edited
       ? h('span', { class: 'annot-edited', title: new Date(item.edited).toLocaleString(document.documentElement.lang || undefined) }, ` · ${T.edited}`)
       : null;
-    return h('div', { class: 'annot-meta' }, h('span', { class: 'annot-author', title: item.author.login }, item.author.name), ' · ', when, edited);
+    return h(
+      'div',
+      { class: 'annot-meta' },
+      h('span', { class: 'annot-author', title: item.author.login }, item.author.name),
+      ' · ',
+      when,
+      edited,
+      fresh(item) ? h('span', { class: 'annot-fresh-label' }, T.fresh) : null,
+    );
   }
 
   function editor(placeholder, onSave, onCancel, initial = '') {
     const area = h('textarea', { rows: 4, placeholder, maxlength: 5000, 'aria-label': placeholder });
     area.value = initial;
+    const mentions = attachMentions(
+      area,
+      () =>
+        Object.entries(knownPeople(config.storageKey))
+          .filter(([login]) => login !== state.user?.login)
+          .sort((a, b) => a[1].localeCompare(b[1])),
+      insert,
+      T.mentions,
+    );
     const preview = h('div', { class: 'annot-preview annot-md', hidden: true });
     const save = h('button', { type: 'button', class: 'annot-primary' }, T.save);
     const tools = h(
@@ -360,12 +390,16 @@ async function start(root) {
         tool[2](area);
       }
     });
-    queueMicrotask(() => area.focus());
+    queueMicrotask(() => {
+      area.focus();
+      area.setSelectionRange(area.value.length, area.value.length);
+    });
     return h(
       'div',
       { class: 'annot-editor' },
       h('div', { class: 'annot-editor-bar' }, h('div', { class: 'annot-tabs', role: 'tablist' }, writeTab, previewTab), tools),
       area,
+      mentions,
       preview,
       h(
         'div',
@@ -489,11 +523,11 @@ async function start(root) {
       ),
       ...(thread.resolved ? [h('span', { class: 'annot-badge' }, T.resolved)] : []),
       ...moveBox(),
-      h('div', { class: 'annot-message', 'data-msg': thread.id }, meta(thread), text(thread)),
+      h('div', { class: `annot-message${fresh(thread) ? ' annot-fresh' : ''}`, 'data-msg': thread.id }, meta(thread), text(thread)),
       ...repliesOf(thread.id).map((reply) =>
         h(
           'div',
-          { class: 'annot-reply annot-message', 'data-msg': reply.id },
+          { class: `annot-reply annot-message${fresh(reply) ? ' annot-fresh' : ''}`, 'data-msg': reply.id },
           reply.inReplyTo ? reference(reply.inReplyTo, T.inReplyTo) : null,
           meta(reply),
           text(reply),
@@ -526,6 +560,11 @@ async function start(root) {
   function render() {
     const all = threads();
     count.textContent = String(all.filter((thread) => !thread.resolved).length);
+    // New messages in open threads.
+    const open = new Set(all.filter((thread) => !thread.resolved).map((thread) => thread.id));
+    const news = state.annotations.filter((item) => open.has(item.replyTo ?? item.id) && fresh(item)).length;
+    freshCount.hidden = news === 0;
+    freshCount.textContent = T.freshCount.replace('{n}', String(news));
     const parts = [];
     if (state.user) parts.push(userLine());
     else parts.push(loginLink());

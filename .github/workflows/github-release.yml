@@ -1,0 +1,33 @@
+name: GitHub release
+
+# Creates the GitHub release of the current version once a maintainer has
+# approved it on npm. The Release workflow stages a version and stops: the
+# approval happens on npmjs.com, which GitHub cannot see, so this checks on a
+# schedule. It does nothing while the version waits for approval, or once
+# its release exists.
+on:
+  schedule:
+    # Every 15 minutes. GitHub may start scheduled runs a few minutes late.
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+concurrency: ${{ github.workflow }}
+
+permissions:
+  contents: write
+
+jobs:
+  github-release:
+    if: github.repository == 'alessandroros/starlight-annotations'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The GitHub release tags the commit that set the version.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: node scripts/github-release.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,10 +2,12 @@
 // with that version's section of the changelog as notes. It does nothing when
 // the release already exists, so it is safe to run again.
 //
-//   node scripts/github-release.mjs 0.2.0   # one version, e.g. to backfill (v0.2.0 works too)
+//   node scripts/github-release.mjs          # the version in package.json
+//   node scripts/github-release.mjs 0.2.0    # one version, e.g. to backfill (v0.2.0 works too)
 //
-// The release workflow calls it through stage-release.mjs once an approved
-// version shows up on npm. Needs the `gh` CLI, signed in or with GH_TOKEN /
+// The GitHub release workflow runs it on a schedule, so the release appears
+// soon after a staged version is approved on npm. The release workflow calls
+// it too, through stage-release.mjs. Needs the `gh` CLI, signed in or with GH_TOKEN /
 // GITHUB_TOKEN set.
 
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -13,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const dir = new URL('../packages/starlight-annotations/', import.meta.url);
-const { name } = JSON.parse(readFileSync(new URL('package.json', dir), 'utf8'));
+const { name, version: current } = JSON.parse(readFileSync(new URL('package.json', dir), 'utf8'));
 
 /** The body of `## <version>` in the changelog, without the heading. */
 export function changelogSection(version) {
@@ -30,7 +32,8 @@ export function changelogSection(version) {
 
 function npmView(version, field) {
   try {
-    return execFileSync('npm', ['view', `${name}@${version}`, field], { encoding: 'utf8' }).trim();
+    // npm's 404 is the usual answer while a version waits for approval: keep it out of the log.
+    return execFileSync('npm', ['view', `${name}@${version}`, field], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
   } catch {
     return '';
   }
@@ -90,10 +93,5 @@ export function githubRelease(version) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   // Accept the tag name too: "v0.2.0" and "0.2.0" are the same version.
-  const version = process.argv[2]?.replace(/^v/, '');
-  if (!version) {
-    console.error('Usage: node scripts/github-release.mjs <version>');
-    process.exit(1);
-  }
-  githubRelease(version);
+  githubRelease(process.argv[2]?.replace(/^v/, '') || current);
 }

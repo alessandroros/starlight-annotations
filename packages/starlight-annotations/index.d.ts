@@ -68,6 +68,15 @@ export type AnnotationStrings = {
   fresh: string;
   freshCount: string;
   mentions: string;
+  kind: string;
+  noKind: string;
+  allKinds: string;
+  kindQuestion: string;
+  kindIssue: string;
+  kindProposal: string;
+  kindDecision: string;
+  wholePage: string;
+  pageNote: string;
 };
 
 export interface StarlightAnnotationsOptions {

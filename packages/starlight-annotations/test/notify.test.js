@@ -156,6 +156,8 @@ describe('senders', () => {
     expect(describeChange({ ...reply, action: 'resolve' }).text).toBe(`Grace resolved a note on rfc/0002\n\n> a <tag> & more\n\n${reply.url}`);
     expect(describeChange({ ...reply, action: 'edit' }).text).toBe(`Grace edited a note on rfc/0002\n\n> a <tag> & more\n\nBecause *x* < y\n\n${reply.url}`);
     expect(describeChange({ ...reply, action: 'anchor' }).title).toBe('Grace moved a note on rfc/0002');
+    const question = { ...reply, action: 'create', annotation: { ...reply.thread, kind: 'question' }, thread: { ...reply.thread, target: {} } };
+    expect(describeChange(question)).toMatchObject({ title: 'Grace added a question on rfc/0002', quote: '' });
   });
 
   it('posts escaped mrkdwn to Slack, only for the chosen actions', async () => {

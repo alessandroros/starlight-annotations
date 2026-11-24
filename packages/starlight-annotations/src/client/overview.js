@@ -5,7 +5,7 @@ import { anchor, buildIndex, skipSelector } from './anchoring.js';
 import { createBackend } from './backend.js';
 import { strings } from './i18n.js';
 import { isNew, rememberPeople, seenTimes } from './memory.js';
-import { h, quoteText, renderMarkdown } from './shared.js';
+import { h, kindLabel, KINDS, quoteText, renderMarkdown } from './shared.js';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 const T = strings(document.documentElement.lang, config.translations);
@@ -53,6 +53,7 @@ async function start(container) {
     status: ['open', 'new', 'changed', 'resolved', 'all'].includes(params.get('status')) ? params.get('status') : 'open',
     author: params.get('author') ?? '',
     text: params.get('q') ?? '',
+    kind: KINDS.includes(params.get('kind')) || params.get('kind') === 'none' ? params.get('kind') : '',
   };
 
   const changed = new Set(); // ids of open threads whose text is gone
@@ -82,6 +83,18 @@ async function start(container) {
       .sort((a, b) => a[1].localeCompare(b[1]))
       .map(([login, name]) => h('option', { value: login, selected: state.author === login }, name)),
   );
+  const kind = h(
+    'select',
+    { onchange: (event) => update({ kind: event.target.value }) },
+    h('option', { value: '' }, T.allKinds),
+    [...KINDS, 'none'].map((value) =>
+      h(
+        'option',
+        { value, selected: state.kind === value },
+        `${value === 'none' ? T.noKind : kindLabel(value, T)} (${threads.filter((entry) => (entry.thread.kind ?? 'none') === value).length})`,
+      ),
+    ),
+  );
   const search = h('input', {
     type: 'search',
     value: state.text,
@@ -96,6 +109,7 @@ async function start(container) {
       { class: 'annot-overview-filters not-content' },
       h('label', {}, T.showing, status),
       h('label', {}, T.author, author),
+      h('label', {}, T.kind, kind),
       search,
     ),
     list,
@@ -106,6 +120,7 @@ async function start(container) {
     const query = new URLSearchParams();
     if (state.status !== 'open') query.set('status', state.status);
     if (state.author) query.set('author', state.author);
+    if (state.kind) query.set('kind', state.kind);
     if (state.text) query.set('q', state.text);
     const qs = String(query);
     history.replaceState(null, '', `${location.pathname}${qs ? `?${qs}` : ''}`);
@@ -118,10 +133,12 @@ async function start(container) {
     if (state.status === 'resolved' && !thread.resolved) return false;
     if (state.status === 'changed' && (thread.resolved || !changed.has(thread.id))) return false;
     const messages = [thread, ...replies];
+    if (state.kind && (thread.kind ?? 'none') !== state.kind) return false;
     if (state.author && !messages.some((item) => item.author.login === state.author)) return false;
     const text = state.text.trim().toLowerCase();
     if (!text) return true;
-    return [quoteText(thread.target.selector), ...messages.map((item) => item.body)].some((value) => value.toLowerCase().includes(text));
+    const quoted = thread.target?.selector ? quoteText(thread.target.selector) : '';
+    return [quoted, ...messages.map((item) => item.body)].some((value) => value.toLowerCase().includes(text));
   }
 
   function card({ page, thread, replies, fresh }) {
@@ -130,7 +147,10 @@ async function start(container) {
     return h(
       'article',
       { class: `annot-thread annot-overview-card${thread.resolved ? ' resolved' : ''}` },
-      h('blockquote', { class: 'annot-quote' }, quoteText(thread.target.selector)),
+      thread.target?.selector
+        ? h('blockquote', { class: 'annot-quote' }, quoteText(thread.target.selector))
+        : h('div', { class: 'annot-quote annot-whole-page' }, T.wholePage),
+      thread.kind ? h('span', { class: `annot-kind annot-kind-${thread.kind}` }, kindLabel(thread.kind, T)) : null,
       h(
         'div',
         { class: 'annot-meta' },
@@ -189,7 +209,7 @@ async function start(container) {
     if (!root) return; // Not a page we can read: say nothing.
     const index = buildIndex(root, skip);
     for (const entry of threads)
-      if (entry.page === page && !entry.thread.resolved && !anchor(index, entry.thread.target.selector)) changed.add(entry.thread.id);
+      if (entry.page === page && !entry.thread.resolved && entry.thread.target?.selector && !anchor(index, entry.thread.target.selector)) changed.add(entry.thread.id);
   });
   counts.changed = changed.size;
   status.querySelector('option[value="changed"]').textContent = option('changed');

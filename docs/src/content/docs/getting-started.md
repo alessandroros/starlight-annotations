@@ -38,6 +38,11 @@ The plugin adds a page at `/annotations/` that lists every note on the site, gro
 
 The page reads every notes file, one request per annotated page, so it is meant for reviewers rather than for every visitor. Change its path with `overview: 'review'`, or leave it out with `overview: false`.
 
+## Kinds, and notes on the whole page
+
+- **Kinds.** When writing a note, pick what it is: question, problem, proposal or decision. It shows as a coloured label, and the overview page filters by it, so "decision" notes become a record of what was agreed. A kind is optional and its author can change it later.
+- **Whole page.** **+ Note on this page**, at the top of the notes panel, writes a note about the page itself rather than a passage, for example "this page is missing the refund flow". These notes come first in the panel.
+
 ## What's new, and mentions
 
 - **New since your last visit.** Notes, replies and edits that others wrote after you last opened a page's notes are marked **New**, and the **Notes** button counts them. The overview page has a **New** filter. On a page you never opened, every note from others is new. Each browser remembers this for itself, in `localStorage`, next to the people it has seen: nothing reaches the server.

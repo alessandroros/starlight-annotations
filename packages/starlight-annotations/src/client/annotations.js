@@ -12,7 +12,7 @@ import { anchor, buildIndex as indexText, skipSelector } from './anchoring.js';
 import { strings } from './i18n.js';
 import { isNew, knownPeople, markSeen, rememberPeople, seenTimes } from './memory.js';
 import { attachMentions } from './mentions.js';
-import { h, loadMarkdown, quoteText, renderMarkdown } from './shared.js';
+import { h, kindLabel, KINDS, loadMarkdown, quoteText, renderMarkdown } from './shared.js';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 const SKIP = skipSelector(config.exclude);
@@ -253,6 +253,7 @@ async function start(root) {
     state.index = buildIndex(root);
     state.anchors.clear();
     for (const thread of threads()) {
+      if (!thread.target?.selector) continue;
       const found = anchor(state.index, thread.target.selector);
       if (found) state.anchors.set(thread.id, { start: found[0], end: found[1], range: rangeFor(state.index, ...found) });
     }
@@ -320,9 +321,20 @@ async function start(root) {
     );
   }
 
-  function editor(placeholder, onSave, onCancel, initial = '') {
+  // `kind` is given for the first note of a thread (null when it has none):
+  // the editor then lets the writer pick one. onSave gets (text, kind).
+  function editor(placeholder, onSave, onCancel, { initial = '', kind } = {}) {
     const area = h('textarea', { rows: 4, placeholder, maxlength: 5000, 'aria-label': placeholder });
     area.value = initial;
+    const kindSelect =
+      kind === undefined
+        ? null
+        : h(
+            'select',
+            { class: 'annot-kind-select', 'aria-label': T.kind },
+            h('option', { value: '' }, T.noKind),
+            KINDS.map((value) => h('option', { value, selected: kind === value }, kindLabel(value, T))),
+          );
     const mentions = attachMentions(
       area,
       () =>
@@ -376,7 +388,7 @@ async function start(root) {
     save.addEventListener('click', async () => {
       if (!area.value.trim()) return area.focus();
       busy(true);
-      const ok = await onSave(area.value);
+      const ok = await onSave(area.value, kindSelect ? kindSelect.value || null : undefined);
       if (!ok) busy(false);
     });
     area.addEventListener('keydown', (event) => {
@@ -405,13 +417,16 @@ async function start(root) {
         'div',
         { class: 'annot-actions' },
         save,
+        kindSelect,
         h('button', { type: 'button', onclick: onCancel }, T.cancel),
         h('a', { class: 'annot-hint', href: 'https://www.markdownguide.org/basic-syntax/', target: '_blank', rel: 'noopener noreferrer' }, T.markdown),
       ),
     );
   }
 
+  // The quoted passage, or "Whole page" for a note about the page.
   function quote(selector) {
+    if (!selector) return h('div', { class: 'annot-quote annot-whole-page' }, T.wholePage);
     return h('blockquote', { class: 'annot-quote' }, quoteText(selector));
   }
 
@@ -437,6 +452,7 @@ async function start(root) {
   }
 
   function threadCard(thread, anchored) {
+    const whole = !thread.target?.selector;
     const card = h('article', {
       class: `annot-thread${thread.resolved ? ' resolved' : ''}${state.active === thread.id ? ' active' : ''}`,
       'data-id': thread.id,
@@ -485,24 +501,25 @@ async function start(root) {
       if (state.editing !== item.id || !own(item)) return renderMarkdown(h('div', { class: 'annot-text annot-md' }), item.body);
       return editor(
         item.replyTo ? T.replyPlaceholder : T.placeholder,
-        async (value) => {
-          if (value.trim() === item.body) {
+        async (value, kind) => {
+          const sameKind = kind === undefined || kind === (item.kind ?? null);
+          if (value.trim() === item.body && sameKind) {
             stopEditing();
             return true;
           }
-          const saved = await send({ action: 'edit', id: item.id, body: value });
+          const saved = await send({ action: 'edit', id: item.id, body: value, ...(kind === undefined ? {} : { kind }) });
           if (!saved) return false;
           stopEditing();
           return true;
         },
         stopEditing,
-        item.body,
+        { initial: item.body, kind: item.replyTo ? undefined : (item.kind ?? null) },
       );
     }
 
     // A thread whose text is gone: attach it to the passage it is about now.
     function moveBox() {
-      if (anchored || !state.user) return [];
+      if (anchored || whole || !state.user) return [];
       if (state.moving !== thread.id)
         return [h('div', { class: 'annot-actions' }, h('button', { type: 'button', onclick: () => startMoving(thread.id) }, T.move))];
       return [
@@ -519,8 +536,9 @@ async function start(root) {
       h(
         'button',
         { type: 'button', class: 'annot-quote-button', disabled: !anchored, onclick: () => focusThread(thread.id, true) },
-        quote(thread.target.selector),
+        quote(thread.target?.selector),
       ),
+      ...(thread.kind ? [h('span', { class: `annot-kind annot-kind-${thread.kind}` }, kindLabel(thread.kind, T))] : []),
       ...(thread.resolved ? [h('span', { class: 'annot-badge' }, T.resolved)] : []),
       ...moveBox(),
       h('div', { class: `annot-message${fresh(thread) ? ' annot-fresh' : ''}`, 'data-msg': thread.id }, meta(thread), text(thread)),
@@ -566,8 +584,11 @@ async function start(root) {
     freshCount.hidden = news === 0;
     freshCount.textContent = T.freshCount.replace('{n}', String(news));
     const parts = [];
-    if (state.user) parts.push(userLine());
-    else parts.push(loginLink());
+    if (state.user) {
+      parts.push(userLine());
+      if (!state.pending && !state.moving)
+        parts.push(h('button', { type: 'button', class: 'annot-page-note', onclick: () => composePageNote() }, `+ ${T.pageNote}`));
+    } else parts.push(loginLink());
     if (state.error) parts.push(h('p', { class: 'annot-error', role: 'alert' }, state.error));
     if (state.pending) {
       parts.push(
@@ -575,12 +596,12 @@ async function start(root) {
           'section',
           { class: 'annot-new' },
           h('strong', {}, T.newNote),
-          quote(state.pending),
+          quote(state.pending.type === 'Page' ? null : state.pending),
           state.user
             ? editor(
                 T.placeholder,
-                async (text) => {
-                  const created = await send({ action: 'create', target: state.pending, body: text });
+                async (text, kind) => {
+                  const created = await send({ action: 'create', target: state.pending, body: text, ...(kind ? { kind } : {}) });
                   if (!created) return false;
                   state.pending = null;
                   focusThread(created.id, false);
@@ -590,6 +611,7 @@ async function start(root) {
                   state.pending = null;
                   render();
                 },
+                { kind: null },
               )
             : loginLink(),
         ),
@@ -598,9 +620,12 @@ async function start(root) {
     const anchored = all
       .filter((thread) => visible(thread) && state.anchors.has(thread.id))
       .sort((a, b) => state.anchors.get(a.id).start - state.anchors.get(b.id).start);
-    const orphans = all.filter((thread) => visible(thread) && !state.anchors.has(thread.id));
+    // Notes about the whole page come first; they have no passage to lose.
+    const whole = all.filter((thread) => visible(thread) && !thread.target?.selector);
+    const orphans = all.filter((thread) => visible(thread) && thread.target?.selector && !state.anchors.has(thread.id));
     if (all.length === 0 && !state.pending)
       parts.push(h('p', { class: 'annot-empty' }, T.empty, overviewUrl ? [' ', h('a', { href: overviewUrl }, T.seeAll)] : null));
+    parts.push(...whole.map((thread) => threadCard(thread, false)));
     parts.push(...anchored.map((thread) => threadCard(thread, true)));
     if (orphans.length) parts.push(h('h3', { class: 'annot-orphans' }, T.orphans), ...orphans.map((thread) => threadCard(thread, false)));
     body.replaceChildren(...parts.filter(Boolean));
@@ -666,6 +691,13 @@ async function start(root) {
     selectButton.hidden = false;
     selectButton.style.top = `${window.scrollY + rect.bottom + 6}px`;
     selectButton.style.left = `${Math.min(window.scrollX + rect.right - selectButton.offsetWidth, window.scrollX + document.documentElement.clientWidth - selectButton.offsetWidth - 8)}px`;
+  }
+
+  function composePageNote() {
+    loadMarkdown();
+    state.pending = { type: 'Page' };
+    render();
+    setOpen(true);
   }
 
   async function compose() {

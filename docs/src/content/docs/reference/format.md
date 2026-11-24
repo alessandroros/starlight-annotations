@@ -36,6 +36,8 @@ One file per page: `annotations/<page>.json`, where `<page>` is the path of the 
 }
 ```
 
+- **Notes about the whole page** have a `target` without a `selector` (`"target": {}`). The panel lists them first, under **Whole page**; they never lose their place when the text changes.
+- **Kinds**: a thread may have `kind`: `question`, `issue` (shown as "Problem"), `proposal` or `decision`. Its author picks it when writing and can change it with **Edit**. Notes without a kind are fine.
 - **Targets** follow the [W3C Web Annotation](https://www.w3.org/TR/annotation-model/#text-quote-selector) selectors. A selection longer than `longQuote` is a `RangeSelector` with a `startSelector` and an `endSelector`, each a `TextQuoteSelector` of 80 characters.
 - **Replies** have `replyTo` (the first note of the thread) and, when they answer another reply, `inReplyTo`. Threads are flat.
 - **Bodies** are Markdown, stored as typed.

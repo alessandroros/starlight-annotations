@@ -15,6 +15,9 @@ const MAX_EXACT = 2000;
 const MAX_EDGE = 200;
 const MAX_CONTEXT = 64;
 
+// What a thread is, when its writer says: shown as a label, used as a filter.
+export const KINDS = ['question', 'issue', 'proposal', 'decision'];
+
 export class AnnotationError extends Error {
   constructor(status, message) {
     super(message);
@@ -102,11 +105,24 @@ function selector(target) {
   };
 }
 
+// A thread is about a passage (a selector), or about the whole page:
+// `target: { type: 'Page' }` in the change, stored as a target without a
+// selector.
+function targetOf(target) {
+  return target?.type === 'Page' ? {} : { selector: selector(target) };
+}
+
+function kindOf(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (!KINDS.includes(value)) throw new AnnotationError(400, 'Unknown kind.');
+  return value;
+}
+
 // A change is one of:
-//   { action: 'create', target: { exact, prefix, suffix }, body }
+//   { action: 'create', target: { exact, prefix, suffix } | { type: 'Page' }, body, kind? }
 //   { action: 'reply', replyTo, body }
 //   { action: 'resolve', id, resolved }
-//   { action: 'edit', id, body }            the author changes their message
+//   { action: 'edit', id, body, kind? }     the author changes their message
 //   { action: 'anchor', id, target }        a thread moves to another passage
 //   { action: 'delete', id }
 // It returns the annotation it touched, and a commit message.
@@ -127,10 +143,12 @@ export function applyChange(doc, change, user, now = new Date()) {
         id: crypto.randomUUID(),
         created,
         author: writer,
-        target: { selector: selector(change.target) },
+        target: targetOf(change.target),
         body: text(change.body, MAX_BODY, 'note'),
         resolved: false,
       };
+      const kind = kindOf(change.kind);
+      if (kind) annotation.kind = kind;
       doc.annotations.push(annotation);
       return { annotation, message: `docs(annotations): note on ${doc.page}` };
     }
@@ -161,6 +179,12 @@ export function applyChange(doc, change, user, now = new Date()) {
       const annotation = find(change.id);
       if (annotation.author?.login !== user.login) throw new AnnotationError(403, 'Only the author can edit a note.');
       annotation.body = text(change.body, MAX_BODY, annotation.replyTo ? 'reply' : 'note');
+      // A thread's kind changes with it; leaving `kind` out keeps it.
+      if (!annotation.replyTo && 'kind' in change) {
+        const kind = kindOf(change.kind);
+        if (kind) annotation.kind = kind;
+        else delete annotation.kind;
+      }
       annotation.edited = created;
       return { annotation, message: `docs(annotations): edit note on ${doc.page}` };
     }
@@ -169,7 +193,7 @@ export function applyChange(doc, change, user, now = new Date()) {
       // attaches the thread to the passage it is now about.
       const annotation = find(change.id);
       if (annotation.replyTo) throw new AnnotationError(400, 'Only a thread can be moved.');
-      annotation.target = { selector: selector(change.target) };
+      annotation.target = targetOf(change.target);
       annotation.movedBy = author;
       annotation.movedAt = created;
       return { annotation, message: `docs(annotations): move note on ${doc.page}` };

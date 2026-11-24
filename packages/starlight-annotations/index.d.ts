@@ -65,6 +65,9 @@ export type AnnotationStrings = {
   moveHint: string;
   moveHere: string;
   textChanged: string;
+  fresh: string;
+  freshCount: string;
+  mentions: string;
 };
 
 export interface StarlightAnnotationsOptions {

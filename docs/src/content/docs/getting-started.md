@@ -34,9 +34,14 @@ During development the plugin serves its own API: notes are written to `.annotat
 
 ## All notes on one page
 
-The plugin adds a page at `/annotations/` that lists every note on the site, grouped by page: what was quoted, who wrote it, when, and how many replies. Filter by status (open, text changed, resolved or all), by author, or by text; the filters stay in the address, so you can share a filtered view. **Open on the page** jumps to the note in its page, with the passage highlighted. The notes panel links to it from its header, and from the message on pages without notes. To make it easier to find for reviewers, add it to your sidebar: `{ label: 'Review notes', link: '/annotations/' }`.
+The plugin adds a page at `/annotations/` that lists every note on the site, grouped by page: what was quoted, who wrote it, when, and how many replies. Filter by status (open, new, text changed, resolved or all), by author, or by text; the filters stay in the address, so you can share a filtered view. **Open on the page** jumps to the note in its page, with the passage highlighted. The notes panel links to it from its header, and from the message on pages without notes. To make it easier to find for reviewers, add it to your sidebar: `{ label: 'Review notes', link: '/annotations/' }`.
 
 The page reads every notes file, one request per annotated page, so it is meant for reviewers rather than for every visitor. Change its path with `overview: 'review'`, or leave it out with `overview: false`.
+
+## What's new, and mentions
+
+- **New since your last visit.** Notes, replies and edits that others wrote after you last opened a page's notes are marked **New**, and the **Notes** button counts them. The overview page has a **New** filter. On a page you never opened, every note from others is new. Each browser remembers this for itself, in `localStorage`, next to the people it has seen: nothing reaches the server.
+- **Mentions.** Type `@` in a note to pick someone who already writes notes on these docs: it writes `@login`. The server reads mentions into [`event.mentions`](/starlight-annotations/guides/notifications/#the-event), so you can notify the people named.
 
 ## Publish it
 

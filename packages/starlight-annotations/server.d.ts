@@ -38,7 +38,7 @@ export interface Auth {
   openContact?(sealed: string): Promise<string | null>;
 }
 
-export type AnnotationAction = 'create' | 'reply' | 'resolve' | 'reopen' | 'delete';
+export type AnnotationAction = 'create' | 'reply' | 'resolve' | 'reopen' | 'edit' | 'anchor' | 'delete';
 
 /** What `onChange` receives after every saved change. */
 export interface AnnotationEvent {

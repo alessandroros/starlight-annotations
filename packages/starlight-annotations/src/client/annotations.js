@@ -8,13 +8,12 @@
 // note cannot inject markup into the page.
 import config from 'virtual:starlight-annotations/config';
 import { createBackend } from './backend.js';
+import { anchor, buildIndex as indexText, skipSelector } from './anchoring.js';
 import { strings } from './i18n.js';
 import { h, loadMarkdown, quoteText, renderMarkdown } from './shared.js';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
-// Text the reader does not see as content: diagrams (rendered late), heading
-// anchor links ("Section titled …"), buttons, and the selectors you add.
-const SKIP = ['pre.mermaid', 'svg', 'script', 'style', 'button', '.sl-anchor-link', '.annot-ui', ...config.exclude].join(', ');
+const SKIP = skipSelector(config.exclude);
 const CONTEXT = 32;
 const T = strings(document.documentElement.lang, config.translations);
 const backend = createBackend(config, BASE, T);
@@ -108,24 +107,10 @@ function pageKey() {
   return path || 'index';
 }
 
-// ---- Text index: the page text as one string, mapped back to DOM nodes ----
+// ---- Text index: offsets in the page text, mapped back to DOM nodes ----
 
-function buildIndex(root) {
-  const nodes = [];
-  const byNode = new Map();
-  let text = '';
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode: (node) =>
-      node.parentElement && !node.parentElement.closest(SKIP) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
-  });
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const entry = { node, start: text.length };
-    nodes.push(entry);
-    byNode.set(node, entry);
-    text += node.data;
-  }
-  return { text, nodes, byNode };
-}
+const buildIndex = (root) => indexText(root, SKIP);
+
 
 function offsetOf(index, container, offset) {
   const entry = container.nodeType === Node.TEXT_NODE && index.byNode.get(container);
@@ -152,48 +137,8 @@ function rangeFor(index, start, end) {
   return range;
 }
 
-function shared(a, b, fromEnd) {
-  let n = 0;
-  const max = Math.min(a.length, b.length);
-  while (n < max && (fromEnd ? a[a.length - 1 - n] === b[b.length - 1 - n] : a[n] === b[n])) n++;
-  return n;
-}
 
-// Finds a quote in the page, at or after `from`. Among several matches, the
-// one whose surrounding text agrees best with the stored context wins; on a
-// tie, the first one.
-function anchorQuote(index, { exact, prefix = '', suffix = '' }, from = 0) {
-  const text = index.text;
-  const matches = [];
-  for (let at = text.indexOf(exact, from); at !== -1; at = text.indexOf(exact, at + 1)) matches.push([at, at + exact.length]);
-  if (matches.length === 0) {
-    // Whitespace may differ after an edit or a rebuild.
-    const pattern = exact.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
-    if (!pattern) return null;
-    for (const match of text.matchAll(new RegExp(pattern, 'g'))) {
-      if (match.index >= from) matches.push([match.index, match.index + match[0].length]);
-    }
-  }
-  let best = null;
-  let bestScore = -1;
-  for (const [start, end] of matches) {
-    const score =
-      shared(text.slice(Math.max(0, start - prefix.length), start), prefix, true) +
-      shared(text.slice(end, end + suffix.length), suffix, false);
-    if (score > bestScore) [best, bestScore] = [[start, end], score];
-  }
-  return best;
-}
 
-// A long passage is stored as its start and its end: find the start, then
-// the end after it.
-function anchor(index, selector) {
-  if (selector.type !== 'RangeSelector') return anchorQuote(index, selector);
-  const start = anchorQuote(index, selector.startSelector);
-  if (!start) return null;
-  const end = anchorQuote(index, selector.endSelector, start[1]);
-  return end ? [start[0], end[1]] : null;
-}
 
 // Selections longer than LONG keep only their first and last EDGE characters.
 const LONG = config.longQuote;
@@ -227,6 +172,8 @@ async function start(root) {
     pending: null, // the selector of the selection being annotated
     showResolved: false,
     active: null,
+    editing: null, // the id of the message being edited
+    moving: null, // the id of the thread being attached to new text
     error: '',
   };
   const supportsHighlights = 'highlights' in CSS && typeof Highlight === 'function';
@@ -346,11 +293,15 @@ async function start(root) {
       dateStyle: 'medium',
       timeStyle: 'short',
     });
-    return h('div', { class: 'annot-meta' }, h('span', { class: 'annot-author', title: item.author.login }, item.author.name), ' · ', when);
+    const edited = item.edited
+      ? h('span', { class: 'annot-edited', title: new Date(item.edited).toLocaleString(document.documentElement.lang || undefined) }, ` · ${T.edited}`)
+      : null;
+    return h('div', { class: 'annot-meta' }, h('span', { class: 'annot-author', title: item.author.login }, item.author.name), ' · ', when, edited);
   }
 
-  function editor(placeholder, onSave, onCancel) {
+  function editor(placeholder, onSave, onCancel, initial = '') {
     const area = h('textarea', { rows: 4, placeholder, maxlength: 5000, 'aria-label': placeholder });
+    area.value = initial;
     const preview = h('div', { class: 'annot-preview annot-md', hidden: true });
     const save = h('button', { type: 'button', class: 'annot-primary' }, T.save);
     const tools = h(
@@ -486,10 +437,49 @@ async function start(root) {
       );
     }
 
-    const ownDelete = (item, question) =>
-      state.user && item.author.login === state.user.login
-        ? h('button', { type: 'button', class: 'annot-danger', onclick: () => confirm(question) && send({ action: 'delete', id: item.id }) }, T.delete)
-        : null;
+    const own = (item) => state.user && item.author.login === state.user.login;
+    const ownActions = (item, question) =>
+      own(item)
+        ? [
+            h('button', { type: 'button', onclick: () => startEditing(item.id) }, T.edit),
+            h('button', { type: 'button', class: 'annot-danger', onclick: () => confirm(question) && send({ action: 'delete', id: item.id }) }, T.delete),
+          ]
+        : [];
+
+    // The message, or an editor on it while its author edits it.
+    function text(item) {
+      if (state.editing !== item.id || !own(item)) return renderMarkdown(h('div', { class: 'annot-text annot-md' }), item.body);
+      return editor(
+        item.replyTo ? T.replyPlaceholder : T.placeholder,
+        async (value) => {
+          if (value.trim() === item.body) {
+            stopEditing();
+            return true;
+          }
+          const saved = await send({ action: 'edit', id: item.id, body: value });
+          if (!saved) return false;
+          stopEditing();
+          return true;
+        },
+        stopEditing,
+        item.body,
+      );
+    }
+
+    // A thread whose text is gone: attach it to the passage it is about now.
+    function moveBox() {
+      if (anchored || !state.user) return [];
+      if (state.moving !== thread.id)
+        return [h('div', { class: 'annot-actions' }, h('button', { type: 'button', onclick: () => startMoving(thread.id) }, T.move))];
+      return [
+        h(
+          'div',
+          { class: 'annot-move', role: 'status' },
+          h('p', {}, T.moveHint),
+          h('button', { type: 'button', onclick: () => startMoving(null) }, T.cancel),
+        ),
+      ];
+    }
 
     card.append(
       h(
@@ -498,34 +488,35 @@ async function start(root) {
         quote(thread.target.selector),
       ),
       ...(thread.resolved ? [h('span', { class: 'annot-badge' }, T.resolved)] : []),
-      h('div', { class: 'annot-message', 'data-msg': thread.id }, meta(thread), renderMarkdown(h('div', { class: 'annot-text annot-md' }), thread.body)),
+      ...moveBox(),
+      h('div', { class: 'annot-message', 'data-msg': thread.id }, meta(thread), text(thread)),
       ...repliesOf(thread.id).map((reply) =>
         h(
           'div',
           { class: 'annot-reply annot-message', 'data-msg': reply.id },
           reply.inReplyTo ? reference(reply.inReplyTo, T.inReplyTo) : null,
           meta(reply),
-          renderMarkdown(h('div', { class: 'annot-text annot-md' }), reply.body),
-          state.user
+          text(reply),
+          state.user && state.editing !== reply.id
             ? h(
                 'div',
                 { class: 'annot-actions annot-reply-actions' },
                 h('button', { type: 'button', onclick: () => openReply(reply) }, T.reply),
-                ownDelete(reply, T.confirmDeleteReply),
+                ...ownActions(reply, T.confirmDeleteReply),
               )
             : null,
         ),
       ),
       replyBox,
     );
-    if (state.user) {
+    if (state.user && state.editing !== thread.id) {
       card.append(
         h(
           'div',
           { class: 'annot-actions' },
           h('button', { type: 'button', onclick: () => openReply(null) }, T.reply),
           h('button', { type: 'button', onclick: () => send({ action: 'resolve', id: thread.id, resolved: !thread.resolved }) }, thread.resolved ? T.reopen : T.resolve),
-          ownDelete(thread, T.confirmDelete),
+          ...ownActions(thread, T.confirmDelete),
         ),
       );
     }
@@ -576,6 +567,23 @@ async function start(root) {
     body.replaceChildren(...parts.filter(Boolean));
   }
 
+  function startEditing(id) {
+    loadMarkdown();
+    state.editing = id;
+    render();
+  }
+
+  function stopEditing() {
+    state.editing = null;
+    render();
+  }
+
+  function startMoving(id) {
+    state.moving = id;
+    if (id) state.pending = null;
+    render();
+  }
+
   function focusThread(id, scroll) {
     state.active = id;
     paint();
@@ -615,13 +623,24 @@ async function start(root) {
       return;
     }
     const rect = selected.range.getBoundingClientRect();
+    selectButton.textContent = state.moving ? T.moveHere : T.annotate;
     selectButton.hidden = false;
     selectButton.style.top = `${window.scrollY + rect.bottom + 6}px`;
     selectButton.style.left = `${Math.min(window.scrollX + rect.right - selectButton.offsetWidth, window.scrollX + document.documentElement.clientWidth - selectButton.offsetWidth - 8)}px`;
   }
 
-  function compose() {
+  async function compose() {
     if (!selected) return;
+    if (state.moving) {
+      const id = state.moving;
+      selectButton.hidden = true;
+      window.getSelection()?.removeAllRanges();
+      const moved = await send({ action: 'anchor', id, target: selected.selector });
+      if (!moved) return;
+      state.moving = null;
+      focusThread(id, false);
+      return;
+    }
     loadMarkdown();
     state.pending = selected.selector;
     selectButton.hidden = true;

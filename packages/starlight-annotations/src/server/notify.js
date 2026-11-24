@@ -7,6 +7,7 @@
 // these post to a channel. `event.participants` and `event.mentions` (logins)
 // let you reach people too, with your own login -> address map.
 
+// What the Slack and Teams senders post by default: not edits and moves.
 const ACTIONS = ['create', 'reply', 'resolve', 'reopen', 'delete'];
 
 // "@ada" and "@ada-l" in a message, not inside an email address or code span.
@@ -61,10 +62,12 @@ export function describeChange(event) {
     reply: `${who} replied on ${event.page}`,
     resolve: `${who} resolved a note on ${event.page}`,
     reopen: `${who} reopened a note on ${event.page}`,
+    edit: `${who} edited a note on ${event.page}`,
+    anchor: `${who} moved a note on ${event.page}`,
     delete: `${who} deleted a note on ${event.page}`,
   }[event.action];
   const quote = quoteOf(event.thread);
-  const body = event.action === 'create' || event.action === 'reply' ? cut(event.annotation.body, 600) : '';
+  const body = ['create', 'reply', 'edit'].includes(event.action) ? cut(event.annotation.body, 600) : '';
   const text = [title, quote && `> ${quote}`, body, event.url].filter(Boolean).join('\n\n');
   return { title, quote, body, text };
 }
@@ -72,7 +75,7 @@ export function describeChange(event) {
 /**
  * Posts each change to a Slack incoming webhook.
  * @param {string} webhookUrl
- * @param {{ actions?: string[] }} [options] Which actions to post. Default: all.
+ * @param {{ actions?: string[] }} [options] Which actions to post. Default: all but edit and anchor.
  */
 export function slackWebhook(webhookUrl, { actions = ACTIONS } = {}) {
   if (!webhookUrl) throw new Error('starlight-annotations: slackWebhook needs a webhook URL.');
@@ -93,7 +96,7 @@ export function slackWebhook(webhookUrl, { actions = ACTIONS } = {}) {
  * Posts each change to a Microsoft Teams channel through a Workflows webhook
  * ("Post to a channel when a webhook request is received").
  * @param {string} webhookUrl
- * @param {{ actions?: string[] }} [options] Which actions to post. Default: all.
+ * @param {{ actions?: string[] }} [options] Which actions to post. Default: all but edit and anchor.
  */
 export function teamsWebhook(webhookUrl, { actions = ACTIONS } = {}) {
   if (!webhookUrl) throw new Error('starlight-annotations: teamsWebhook needs a webhook URL.');

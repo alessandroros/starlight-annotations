@@ -154,6 +154,8 @@ describe('senders', () => {
     expect(title).toBe('Grace replied on rfc/0002');
     expect(text).toBe(`Grace replied on rfc/0002\n\n> a <tag> & more\n\nBecause *x* < y\n\n${reply.url}`);
     expect(describeChange({ ...reply, action: 'resolve' }).text).toBe(`Grace resolved a note on rfc/0002\n\n> a <tag> & more\n\n${reply.url}`);
+    expect(describeChange({ ...reply, action: 'edit' }).text).toBe(`Grace edited a note on rfc/0002\n\n> a <tag> & more\n\nBecause *x* < y\n\n${reply.url}`);
+    expect(describeChange({ ...reply, action: 'anchor' }).title).toBe('Grace moved a note on rfc/0002');
   });
 
   it('posts escaped mrkdwn to Slack, only for the chosen actions', async () => {
@@ -170,6 +172,10 @@ describe('senders', () => {
 
     await slackWebhook('https://hooks.slack.example/x', { actions: ['create'] })(event());
     expect(fetch).toHaveBeenCalledTimes(1);
+    // Edits and moves are not posted unless asked for.
+    await slackWebhook('https://hooks.slack.example/x')({ ...event(), action: 'edit' });
+    await slackWebhook('https://hooks.slack.example/x', { actions: ['edit'] })({ ...event(), action: 'edit' });
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it('posts an Adaptive Card to Teams, and reports a refused webhook', async () => {

@@ -106,6 +106,8 @@ function selector(target) {
 //   { action: 'create', target: { exact, prefix, suffix }, body }
 //   { action: 'reply', replyTo, body }
 //   { action: 'resolve', id, resolved }
+//   { action: 'edit', id, body }            the author changes their message
+//   { action: 'anchor', id, target }        a thread moves to another passage
 //   { action: 'delete', id }
 // It returns the annotation it touched, and a commit message.
 export function applyChange(doc, change, user, now = new Date()) {
@@ -154,6 +156,23 @@ export function applyChange(doc, change, user, now = new Date()) {
       annotation.resolvedBy = annotation.resolved ? author : undefined;
       annotation.resolvedAt = annotation.resolved ? created : undefined;
       return { annotation, message: `docs(annotations): ${annotation.resolved ? 'resolve' : 'reopen'} note on ${doc.page}` };
+    }
+    case 'edit': {
+      const annotation = find(change.id);
+      if (annotation.author?.login !== user.login) throw new AnnotationError(403, 'Only the author can edit a note.');
+      annotation.body = text(change.body, MAX_BODY, annotation.replyTo ? 'reply' : 'note');
+      annotation.edited = created;
+      return { annotation, message: `docs(annotations): edit note on ${doc.page}` };
+    }
+    case 'anchor': {
+      // When the page changed and the quote is gone, anyone who can write
+      // attaches the thread to the passage it is now about.
+      const annotation = find(change.id);
+      if (annotation.replyTo) throw new AnnotationError(400, 'Only a thread can be moved.');
+      annotation.target = { selector: selector(change.target) };
+      annotation.movedBy = author;
+      annotation.movedAt = created;
+      return { annotation, message: `docs(annotations): move note on ${doc.page}` };
     }
     case 'delete': {
       const annotation = find(change.id);

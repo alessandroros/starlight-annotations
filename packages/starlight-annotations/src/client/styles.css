@@ -161,6 +161,24 @@
   background: var(--sl-color-gray-5);
   font-size: var(--sl-text-xs);
 }
+.annot-badge.annot-changed {
+  margin-left: 0.4rem;
+  background: var(--sl-color-orange-low);
+  color: var(--sl-color-orange-high);
+}
+.annot-move {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px dashed var(--sl-color-accent);
+  border-radius: 0.4rem;
+  font-size: var(--sl-text-sm);
+}
+.annot-move p {
+  margin: 0;
+}
 .annot-meta {
   color: var(--sl-color-gray-3);
   font-size: var(--sl-text-xs);

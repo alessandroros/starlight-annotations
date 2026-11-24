@@ -5,7 +5,8 @@
 //
 // Runs on every push to main once there are no changesets left, so it skips
 // a version that is already published, and one that is already staged. Once
-// the approved version is live, the next run creates its GitHub release.
+// the approved version is live, the GitHub release workflow creates its
+// release within about 15 minutes (and this script does too, if it runs).
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';

@@ -3,8 +3,6 @@ name: Release
 on:
   push:
     branches: [main]
-  # Run it by hand after approving a staged version, to create its GitHub
-  # release without waiting for the next push.
   workflow_dispatch:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}

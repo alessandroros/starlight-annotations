@@ -196,3 +196,25 @@ describe('senders', () => {
     expect(() => slackWebhook('')).toThrow('needs a webhook URL');
   });
 });
+
+describe('quoteOf', () => {
+  it('cuts long quotes between words, never inside one', async () => {
+    const { quoteOf } = await import('../src/server/notify.js');
+    const range = {
+      target: {
+        selector: {
+          type: 'RangeSelector',
+          // Stored edges are cut by length: "hol" and "nd" are half words.
+          startSelector: { exact: 'Keep a copy of the ticketing leads. STA then hol' },
+          endSelector: { exact: 'nd system leads, and push the user to it (VpD-27).' },
+        },
+      },
+    };
+    expect(quoteOf(range)).toBe('Keep a copy of the ticketing leads. STA then … system leads, and push the user to it (VpD-27).');
+    const words = Array.from({ length: 60 }, (_, i) => `word${i}`).join(' ');
+    const long = quoteOf({ target: { selector: { type: 'TextQuoteSelector', exact: words } } });
+    expect(long).toMatch(/^word0 .* … .* word59$/);
+    for (const part of long.split(' … ')) expect(part.split(' ').every((word) => /^word\d+$/.test(word))).toBe(true);
+    expect(quoteOf({ target: {} })).toBe('');
+  });
+});

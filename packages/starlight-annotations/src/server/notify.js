@@ -41,14 +41,18 @@ export function changeEvent({ change, result, page, user, url }) {
   };
 }
 
-/** The quoted passage of a thread, cut in the middle when it is long. */
+/** The quoted passage of a thread, cut in the middle, between words, when it is long. */
 export function quoteOf(thread) {
   const selector = thread?.target?.selector;
   if (!selector) return '';
   const squash = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
-  if (selector.type === 'RangeSelector') return `${squash(selector.startSelector.exact)} … ${squash(selector.endSelector.exact)}`;
+  // A cut lands inside a word: drop that half word, as the panel does.
+  const head = (value) => value.replace(/\s+\S*$/, '');
+  const tail = (value) => value.replace(/^\S*\s+/, '');
+  if (selector.type === 'RangeSelector')
+    return `${head(squash(selector.startSelector.exact))} … ${tail(squash(selector.endSelector.exact))}`;
   const exact = squash(selector.exact);
-  return exact.length > 200 ? `${exact.slice(0, 120)} … ${exact.slice(-60)}` : exact;
+  return exact.length > 200 ? `${head(exact.slice(0, 121))} … ${tail(exact.slice(-61))}` : exact;
 }
 
 /**

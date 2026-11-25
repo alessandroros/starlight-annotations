@@ -63,8 +63,9 @@ export function describeChange(event) {
   const who = event.user.name;
   // "Ada added a question on …" when the note has a kind.
   const what = { question: 'a question', issue: 'a problem', proposal: 'a proposal', decision: 'a decision' }[event.annotation?.kind] ?? 'a note';
+  const suggesting = typeof event.annotation?.suggestion === 'string';
   const title = {
-    create: `${who} added ${what} on ${event.page}`,
+    create: suggesting ? `${who} suggested an edit on ${event.page}` : `${who} added ${what} on ${event.page}`,
     reply: `${who} replied on ${event.page}`,
     resolve: `${who} resolved a note on ${event.page}`,
     reopen: `${who} reopened a note on ${event.page}`,
@@ -74,7 +75,10 @@ export function describeChange(event) {
     delete: `${who} deleted a note on ${event.page}`,
   }[event.action];
   const quote = quoteOf(event.thread);
-  const body = ['create', 'reply', 'edit'].includes(event.action) ? cut(event.annotation.body, 600) : '';
+  const written = ['create', 'reply', 'edit'].includes(event.action);
+  // A suggested edit: "→ the new text" (or "→ (delete)") before the message.
+  const suggestion = written && suggesting ? `→ ${event.annotation.suggestion ? cut(event.annotation.suggestion, 300) : '(delete)'}` : '';
+  const body = written ? [suggestion, cut(event.annotation.body, 600)].filter(Boolean).join('\n\n') : '';
   const text = [title, quote && `> ${quote}`, body, event.url].filter(Boolean).join('\n\n');
   return { title, quote, body, text };
 }

@@ -82,6 +82,15 @@ export type AnnotationStrings = {
   issue: string;
   saving: string;
   offline: string;
+  suggestEdit: string;
+  suggestion: string;
+  suggestionText: string;
+  suggestionSame: string;
+  suggestionWhy: string;
+  removeText: string;
+  copySuggestion: string;
+  copied: string;
+  suggestions: string;
 };
 
 export interface StarlightAnnotationsOptions {

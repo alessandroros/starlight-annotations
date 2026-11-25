@@ -83,6 +83,15 @@ const en = {
   issue: 'Issue',
   saving: 'Saving…',
   offline: 'Could not reach the notes service. Check your connection and try again.',
+  suggestEdit: 'Suggest edit',
+  suggestion: 'Suggested edit',
+  suggestionText: 'Replace with',
+  suggestionSame: 'Change the text to suggest an edit.',
+  suggestionWhy: 'Why? (optional)',
+  removeText: 'Delete this text',
+  copySuggestion: 'Copy new text',
+  copied: 'Copied',
+  suggestions: 'Suggested edits',
 };
 
 const it = {
@@ -167,6 +176,15 @@ const it = {
   issue: 'Issue',
   saving: 'Salvataggio…',
   offline: 'Impossibile raggiungere il servizio delle note. Controlla la connessione e riprova.',
+  suggestEdit: 'Suggerisci modifica',
+  suggestion: 'Modifica suggerita',
+  suggestionText: 'Sostituisci con',
+  suggestionSame: 'Cambia il testo per suggerire una modifica.',
+  suggestionWhy: 'Perché? (facoltativo)',
+  removeText: 'Elimina questo testo',
+  copySuggestion: 'Copia il nuovo testo',
+  copied: 'Copiato',
+  suggestions: 'Modifiche suggerite',
 };
 
 const de = {
@@ -251,6 +269,15 @@ const de = {
   issue: 'Issue',
   saving: 'Wird gespeichert…',
   offline: 'Der Notizdienst ist nicht erreichbar. Prüfe die Verbindung und versuche es erneut.',
+  suggestEdit: 'Änderung vorschlagen',
+  suggestion: 'Vorgeschlagene Änderung',
+  suggestionText: 'Ersetzen durch',
+  suggestionSame: 'Ändere den Text, um eine Änderung vorzuschlagen.',
+  suggestionWhy: 'Warum? (optional)',
+  removeText: 'Diesen Text löschen',
+  copySuggestion: 'Neuen Text kopieren',
+  copied: 'Kopiert',
+  suggestions: 'Vorgeschlagene Änderungen',
 };
 
 const fr = {
@@ -335,6 +362,15 @@ const fr = {
   issue: 'Issue',
   saving: 'Enregistrement…',
   offline: 'Impossible de joindre le service des notes. Vérifiez la connexion et réessayez.',
+  suggestEdit: 'Suggérer une modification',
+  suggestion: 'Modification suggérée',
+  suggestionText: 'Remplacer par',
+  suggestionSame: 'Modifiez le texte pour suggérer une modification.',
+  suggestionWhy: 'Pourquoi ? (facultatif)',
+  removeText: 'Supprimer ce texte',
+  copySuggestion: 'Copier le nouveau texte',
+  copied: 'Copié',
+  suggestions: 'Modifications suggérées',
 };
 
 const es = {
@@ -419,6 +455,15 @@ const es = {
   issue: 'Issue',
   saving: 'Guardando…',
   offline: 'No se puede acceder al servicio de notas. Comprueba la conexión e inténtalo de nuevo.',
+  suggestEdit: 'Sugerir cambio',
+  suggestion: 'Cambio sugerido',
+  suggestionText: 'Reemplazar por',
+  suggestionSame: 'Cambia el texto para sugerir un cambio.',
+  suggestionWhy: '¿Por qué? (opcional)',
+  removeText: 'Eliminar este texto',
+  copySuggestion: 'Copiar el texto nuevo',
+  copied: 'Copiado',
+  suggestions: 'Cambios sugeridos',
 };
 
 export const builtIn = { en, it, de, fr, es };

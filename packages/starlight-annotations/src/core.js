@@ -112,6 +112,24 @@ function targetOf(target) {
   return target?.type === 'Page' ? {} : { selector: selector(target) };
 }
 
+// A suggested edit: the text that should replace the quoted passage. Only a
+// short passage (a TextQuoteSelector) has its whole text stored, so only it
+// can carry one. An empty suggestion means "delete this text".
+function suggestionOf(value, target) {
+  if (typeof value !== 'string') throw new AnnotationError(400, 'Invalid suggestion.');
+  if (target?.selector?.type !== 'TextQuoteSelector') throw new AnnotationError(400, 'A suggested edit needs a short passage.');
+  const suggestion = value.trim();
+  if (suggestion.length > MAX_BODY) throw new AnnotationError(400, 'suggestion is too long.');
+  if (suggestion === target.selector.exact.trim()) throw new AnnotationError(400, 'The suggestion is the same as the text.');
+  return suggestion;
+}
+
+// The message of a note. A suggested edit may come without one.
+function bodyOf(value, field, optional) {
+  if (optional && (value === undefined || value === null || (typeof value === 'string' && !value.trim()))) return '';
+  return text(value, MAX_BODY, field);
+}
+
 function kindOf(value) {
   if (value === undefined || value === null || value === '') return undefined;
   if (!KINDS.includes(value)) throw new AnnotationError(400, 'Unknown kind.');
@@ -119,10 +137,13 @@ function kindOf(value) {
 }
 
 // A change is one of:
-//   { action: 'create', target: { exact, prefix, suffix } | { type: 'Page' }, body, kind? }
+//   { action: 'create', target: { exact, prefix, suffix } | { type: 'Page' }, body, kind?, suggestion? }
+//                                           a suggestion replaces the quoted text;
+//                                           with one, `body` may be empty
 //   { action: 'reply', replyTo, body }
 //   { action: 'resolve', id, resolved }
-//   { action: 'edit', id, body, kind? }     the author changes their message
+//   { action: 'edit', id, body, kind?, suggestion? }  the author changes their
+//                                           message; suggestion null removes it
 //   { action: 'anchor', id, target }        a thread moves to another passage
 //   { action: 'issue', id, issue: { number, url } }  the thread became an issue
 //                                           (the handler fills `issue` after creating it)
@@ -141,16 +162,19 @@ export function applyChange(doc, change, user, now = new Date()) {
 
   switch (change?.action) {
     case 'create': {
+      const target = targetOf(change.target);
+      const suggesting = change.suggestion !== undefined && change.suggestion !== null;
       const annotation = {
         id: crypto.randomUUID(),
         created,
         author: writer,
-        target: targetOf(change.target),
-        body: text(change.body, MAX_BODY, 'note'),
+        target,
+        body: bodyOf(change.body, 'note', suggesting),
         resolved: false,
       };
       const kind = kindOf(change.kind);
       if (kind) annotation.kind = kind;
+      if (suggesting) annotation.suggestion = suggestionOf(change.suggestion, target);
       doc.annotations.push(annotation);
       return { annotation, message: `docs(annotations): note on ${doc.page}` };
     }
@@ -180,8 +204,14 @@ export function applyChange(doc, change, user, now = new Date()) {
     case 'edit': {
       const annotation = find(change.id);
       if (annotation.author?.login !== user.login) throw new AnnotationError(403, 'Only the author can edit a note.');
-      annotation.body = text(change.body, MAX_BODY, annotation.replyTo ? 'reply' : 'note');
-      // A thread's kind changes with it; leaving `kind` out keeps it.
+      // A thread's kind and suggestion change with it; leaving them out keeps them.
+      // Everything is checked before anything changes.
+      let suggestion = annotation.suggestion;
+      if (!annotation.replyTo && 'suggestion' in change)
+        suggestion = change.suggestion === null || change.suggestion === undefined ? undefined : suggestionOf(change.suggestion, annotation.target);
+      annotation.body = bodyOf(change.body, annotation.replyTo ? 'reply' : 'note', suggestion !== undefined);
+      if (suggestion === undefined) delete annotation.suggestion;
+      else annotation.suggestion = suggestion;
       if (!annotation.replyTo && 'kind' in change) {
         const kind = kindOf(change.kind);
         if (kind) annotation.kind = kind;
@@ -195,7 +225,11 @@ export function applyChange(doc, change, user, now = new Date()) {
       // attaches the thread to the passage it is now about.
       const annotation = find(change.id);
       if (annotation.replyTo) throw new AnnotationError(400, 'Only a thread can be moved.');
-      annotation.target = targetOf(change.target);
+      const target = targetOf(change.target);
+      // The suggestion replaces the old passage; on another passage it means nothing.
+      if ('suggestion' in annotation && target.selector?.type !== 'TextQuoteSelector')
+        throw new AnnotationError(400, 'A suggested edit needs a short passage.');
+      annotation.target = target;
       annotation.movedBy = author;
       annotation.movedAt = created;
       return { annotation, message: `docs(annotations): move note on ${doc.page}` };

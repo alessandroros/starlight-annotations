@@ -4,6 +4,8 @@
 // micromark escapes raw HTML and drops javascript: links by default, so a
 // note cannot inject markup into the page.
 
+import { diffWords } from '../diff.js';
+
 // ---- Markdown ----
 
 // The Markdown parser is most of the client's weight, so it loads on demand:
@@ -73,6 +75,51 @@ export function quoteText(selector) {
 }
 
 export { KINDS } from '../core.js';
+
+// A thread that suggests an edit carries `suggestion`, the text that should
+// replace its quote ("" to delete it).
+export const suggests = (thread) => typeof thread?.suggestion === 'string';
+
+// The Clipboard API, or the old copy command where it is refused (a page
+// not served over HTTPS, an embedded browser).
+async function copyText(value) {
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    const area = h('textarea', { readonly: true, style: 'position:fixed;opacity:0' });
+    area.value = value;
+    document.body.append(area);
+    area.select();
+    const done = document.execCommand?.('copy') ?? false;
+    area.remove();
+    return done;
+  }
+}
+
+// The suggested edit as the reader sees it: the quoted text with the removed
+// words struck out and the new ones marked, and a button that copies the new
+// text, to paste it into the source by hand.
+export function suggestionView(thread, T) {
+  const parts = diffWords(thread.target.selector.exact, thread.suggestion);
+  const copy = h('button', { type: 'button', class: 'annot-copy' }, T.copySuggestion);
+  copy.addEventListener('click', async () => {
+    if (await copyText(thread.suggestion)) {
+      copy.textContent = T.copied;
+      setTimeout(() => (copy.textContent = T.copySuggestion), 1500);
+    }
+  });
+  return h(
+    'div',
+    { class: 'annot-suggestion' },
+    h('div', { class: 'annot-suggestion-head' }, h('strong', {}, thread.suggestion ? T.suggestion : T.removeText), thread.suggestion ? copy : null),
+    h(
+      'p',
+      { class: 'annot-diff' },
+      parts.map(({ type, text }) => (type === 'same' ? text : h(type, {}, text))),
+    ),
+  );
+}
 
 // "question" -> T.kindQuestion
 export function kindLabel(kind, T) {

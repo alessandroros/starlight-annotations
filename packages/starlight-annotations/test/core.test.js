@@ -148,3 +148,56 @@ describe('kinds and whole-page notes', () => {
     expect(annotation.target).toEqual({});
   });
 });
+
+describe('suggested edits', () => {
+  const target = { exact: 'the token expires', prefix: 'Then ', suffix: ' after an hour' };
+  const suggest = (doc, change = {}) =>
+    applyChange(doc, { action: 'create', target, body: '', suggestion: 'the token lasts', ...change }, ann).annotation;
+
+  it('stores the replacement text, and the message may be empty', () => {
+    const note = suggest(emptyDocument('p'));
+    expect(note.suggestion).toBe('the token lasts');
+    expect(note.body).toBe('');
+  });
+  it('accepts an empty suggestion, to delete the text', () => {
+    expect(suggest(emptyDocument('p'), { suggestion: '  ' }).suggestion).toBe('');
+  });
+  it('refuses a suggestion equal to the text', () => {
+    expect(() => suggest(emptyDocument('p'), { suggestion: ' the token expires ' })).toThrow(/same as the text/);
+  });
+  it('refuses a suggestion on a long passage or the whole page', () => {
+    const range = {
+      type: 'RangeSelector',
+      startSelector: { exact: 'start' },
+      endSelector: { exact: 'end' },
+    };
+    expect(() => suggest(emptyDocument('p'), { target: range })).toThrow(/short passage/);
+    expect(() => suggest(emptyDocument('p'), { target: { type: 'Page' } })).toThrow(/short passage/);
+  });
+  it('still needs a message without a suggestion', () => {
+    expect(() => applyChange(emptyDocument('p'), { action: 'create', target, body: ' ' }, ann)).toThrow(/Empty note/);
+  });
+  it('lets the author change or remove the suggestion', () => {
+    const doc = emptyDocument('p');
+    const note = suggest(doc, { body: 'shorter' });
+    applyChange(doc, { action: 'edit', id: note.id, body: 'shorter', suggestion: 'it lasts' }, ann);
+    expect(note.suggestion).toBe('it lasts');
+    applyChange(doc, { action: 'edit', id: note.id, body: 'shorter' }, ann);
+    expect(note.suggestion).toBe('it lasts');
+    applyChange(doc, { action: 'edit', id: note.id, body: 'shorter', suggestion: null }, ann);
+    expect('suggestion' in note).toBe(false);
+  });
+  it('keeps the suggestion when removing it would leave an empty note', () => {
+    const doc = emptyDocument('p');
+    const note = suggest(doc);
+    expect(() => applyChange(doc, { action: 'edit', id: note.id, body: '', suggestion: null }, ann)).toThrow(/Empty note/);
+    expect(note.suggestion).toBe('the token lasts');
+  });
+  it('moves only to another short passage', () => {
+    const doc = emptyDocument('p');
+    const note = suggest(doc);
+    expect(() => applyChange(doc, { action: 'anchor', id: note.id, target: { type: 'Page' } }, bob)).toThrow(/short passage/);
+    applyChange(doc, { action: 'anchor', id: note.id, target: { exact: 'the token expires soon' } }, bob);
+    expect(note.target.selector.exact).toBe('the token expires soon');
+  });
+});

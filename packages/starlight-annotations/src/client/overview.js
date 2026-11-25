@@ -158,6 +158,9 @@ async function start(container) {
         ' · ',
         when,
         thread.resolved ? h('span', { class: 'annot-badge' }, T.resolved) : null,
+        thread.issue
+          ? h('a', { class: 'annot-issue', href: thread.issue.url, target: '_blank', rel: 'noopener noreferrer' }, `${T.issue} #${thread.issue.number} ↗`)
+          : null,
         fresh ? h('span', { class: 'annot-badge annot-fresh-label' }, T.fresh) : null,
         !thread.resolved && changed.has(thread.id) ? h('span', { class: 'annot-badge annot-changed' }, T.textChanged) : null,
       ),

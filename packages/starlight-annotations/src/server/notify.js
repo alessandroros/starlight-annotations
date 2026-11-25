@@ -8,7 +8,7 @@
 // let you reach people too, with your own login -> address map.
 
 // What the Slack and Teams senders post by default: not edits and moves.
-const ACTIONS = ['create', 'reply', 'resolve', 'reopen', 'delete'];
+const ACTIONS = ['create', 'reply', 'resolve', 'reopen', 'issue', 'delete'];
 
 // "@ada" and "@ada-l" in a message, not inside an email address or code span.
 const MENTION = /(?<![\w`.@/])@([a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38})(?![\w-])/gi;
@@ -66,6 +66,7 @@ export function describeChange(event) {
     reopen: `${who} reopened a note on ${event.page}`,
     edit: `${who} edited a note on ${event.page}`,
     anchor: `${who} moved a note on ${event.page}`,
+    issue: `${who} opened issue #${event.annotation?.issue?.number} for a note on ${event.page}`,
     delete: `${who} deleted a note on ${event.page}`,
   }[event.action];
   const quote = quoteOf(event.thread);

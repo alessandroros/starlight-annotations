@@ -148,6 +148,26 @@ Until every value is set, keep the handler from answering (or answer 503): the p
 
 From then on, every note, reply, resolve and delete is a commit on that branch. Review them like any other history: `git log annotations`, or the branch on GitHub.
 
+## Open an issue from a note
+
+When a note turns into work, turn it into a GitHub issue. Add `issues` to the options:
+
+```js
+github({ ...options, issues: true }); // or { repo: 'owner/tracker' } for another repository
+```
+
+Every open thread then has **Open issue**. Anyone who can write notes can press it. The server opens the issue with its own credential and the note is resolved, with a link to the issue in the panel and on the overview page. The issue has:
+
+- **Title:** the first line of the note.
+- **Body:**
+  - the quoted passage, or "Whole page";
+  - a link back to the note;
+  - the whole conversation, people shown as links to their profile, so opening the issue notifies nobody by itself;
+  - who opened it.
+- **Label:** the note's kind, if it has one: `question`, `problem`, `proposal` or `decision`. GitHub creates the label if it is missing; if it refuses, the issue is opened without it.
+
+The server credential needs to write issues: a fine-grained token with **Issues: Read and write**, or a GitHub App with that repository permission (accept the new permission on the installation). Closing or reopening the issue does not change the note.
+
 ## Troubleshooting
 
 | What you see | Why | What to do |
@@ -156,6 +176,7 @@ From then on, every note, reply, resolve and delete is a commit on that branch. 
 | A **redirect_uri** error on GitHub instead of the authorize page | The callback URL in the OAuth app does not match the site | Make it exactly `https://<site><base>/_annotations/callback` |
 | **"The sign-in link expired. Try again."** | The sign-in took more than 10 minutes, or cookies are blocked | Sign in again; allow cookies for the site |
 | **No Annotate button** on the published site | The API answers an error or nothing, so the UI stays hidden | Open `/_annotations/api?page=index`: 503 means a setting is missing, 404 means the handler is not mounted at that path |
+| **"Could not open an issue on …"** | Issues are turned off on that repository, or the credential lacks *Issues: Read and write* | Turn issues on in the repository settings, or add the permission to the token or the app |
 | **"The annotation service failed"** when saving | GitHub refused the write: the token expired, or lost *Contents: Read and write* | Check the server logs for the GitHub status, renew the token and update the secret |
 
 ## Rotating and revoking

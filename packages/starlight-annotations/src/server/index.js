@@ -107,6 +107,7 @@ export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX,
             user: user && { login: user.login, name: user.name },
             mode: auth?.mode ?? storage.mode ?? 'api',
             canSignIn: Boolean(auth?.route),
+            issues: Boolean(storage.createIssue),
           },
           200,
           revoked && auth.clearSession ? { 'Set-Cookie': auth.clearSession } : {},
@@ -131,10 +132,24 @@ export function createAnnotationsHandler({ storage, auth, prefix = ROUTE_PREFIX,
           const error = auth.noAccess ? auth.noAccess(user.login) : 'You may no longer annotate these docs.';
           return json({ error, signedOut: true }, 403, auth.clearSession ? { 'Set-Cookie': auth.clearSession } : {});
         }
-        const { page, change } = await request.json();
+        const body = await request.json();
+        const page = checkPage(body.page);
+        let change = body.change;
+        // A thread becomes an issue: open it first, then record it on the note.
+        if (change?.action === 'issue') {
+          if (!storage.createIssue) return json({ error: 'Issues are not turned on for these notes.' }, 400);
+          const doc = await storage.load(page);
+          const thread = doc.annotations.find((item) => item.id === change.id);
+          if (!thread) return json({ error: 'Annotation not found.' }, 404);
+          if (thread.replyTo) return json({ error: 'Only a thread can become an issue.' }, 400);
+          if (thread.issue) return json({ error: 'This note already has an issue.' }, 409);
+          const replies = doc.annotations.filter((item) => item.replyTo === thread.id);
+          const issue = await storage.createIssue({ page, thread, replies, url: linkTo(page, request, url, thread.id), user });
+          change = { action: 'issue', id: thread.id, issue };
+        }
         // With `emails`, new notes carry the writer's email, sealed.
         const writer = auth?.sealContact && user.email ? { ...user, contact: await auth.sealContact(user.email) } : user;
-        const saved = await storage.update(checkPage(page), (doc) => applyChange(doc, change, writer), writer);
+        const saved = await storage.update(page, (doc) => applyChange(doc, change, writer), writer);
         const result = { ...saved, annotation: withoutContact(saved.annotation), annotations: saved.annotations.map(withoutContact) };
         if (listeners.length) {
           const deleted = change.action === 'delete';
@@ -173,6 +188,7 @@ export function staticAuth(user) {
  *   list?(): Promise<{ page: string, annotations: object[] }[]>,
  *   update(page: string, mutate: (doc: AnnotationDocument) => { annotation: object, message: string }, user: User):
  *     Promise<{ annotation: object, annotations: object[] }>,
+ *   createIssue?(input: { page: string, thread: object, replies: object[], url: string, user: User }): Promise<{ number: number, url: string }>,
  * }} Storage
  * @typedef {{
  *   mode?: string,

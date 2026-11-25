@@ -77,6 +77,9 @@ export type AnnotationStrings = {
   kindDecision: string;
   wholePage: string;
   pageNote: string;
+  openIssue: string;
+  confirmIssue: string;
+  issue: string;
 };
 
 export interface StarlightAnnotationsOptions {

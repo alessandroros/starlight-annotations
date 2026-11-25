@@ -136,7 +136,7 @@ The person who made the change is never in either list.
 
 | Field | |
 |---|---|
-| `action` | `create`, `reply`, `resolve`, `reopen`, `edit` (the author changed a message), `anchor` (a thread moved to another passage) or `delete` |
+| `action` | `create`, `reply`, `resolve`, `reopen`, `edit` (the author changed a message), `anchor` (a thread moved to another passage), `issue` (a thread became a GitHub issue, in `annotation.issue`) or `delete` |
 | `page` | The page key, e.g. `rfc/0002-user-data-model` |
 | `url` | Opens the note on its page. After a whole thread is deleted, the page alone |
 | `user` | `{ login, name }` of who made the change |

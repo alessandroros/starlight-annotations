@@ -32,6 +32,7 @@ Returns `{ storage, auth }`: `githubStorage(options)` and `githubAuth(options)` 
 | `branch` | `'annotations'` | Created from the default branch on the first save. |
 | `dir` | `'annotations'` | Folder in the branch. |
 | `commitMessage` | | `(message, page) => string`, to follow your commit convention. |
+| `issues` | | `true` to let readers turn a thread into a GitHub issue in `repo`, or `{ repo: 'owner/name' }` for another repository. See [Open an issue from a note](/starlight-annotations/guides/github/#open-an-issue-from-a-note). |
 | `clientId`, `clientSecret` | | The OAuth app, or the GitHub App's client ID and secret. |
 | `sessionSecret` | | Signs the session cookie. |
 | `writers` | `'collaborators'` | `'collaborators'` (write, maintain or admin access to `repo`), `'anyone'`, a list of logins, or `(profile) => boolean`. |

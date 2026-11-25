@@ -169,6 +169,7 @@ async function start(root) {
     annotations: initial.annotations,
     user: initial.user,
     mode: initial.mode,
+    issues: Boolean(initial.issues), // the server can turn a thread into an issue
     index: null,
     anchors: new Map(), // id -> { start, end, range }
     pending: null, // the selector of the selection being annotated
@@ -425,6 +426,10 @@ async function start(root) {
   }
 
   // The quoted passage, or "Whole page" for a note about the page.
+  function issueLink(issue) {
+    return h('a', { class: 'annot-issue', href: issue.url, target: '_blank', rel: 'noopener noreferrer' }, `${T.issue} #${issue.number} ↗`);
+  }
+
   function quote(selector) {
     if (!selector) return h('div', { class: 'annot-quote annot-whole-page' }, T.wholePage);
     return h('blockquote', { class: 'annot-quote' }, quoteText(selector));
@@ -540,6 +545,7 @@ async function start(root) {
       ),
       ...(thread.kind ? [h('span', { class: `annot-kind annot-kind-${thread.kind}` }, kindLabel(thread.kind, T))] : []),
       ...(thread.resolved ? [h('span', { class: 'annot-badge' }, T.resolved)] : []),
+      ...(thread.issue ? [issueLink(thread.issue)] : []),
       ...moveBox(),
       h('div', { class: `annot-message${fresh(thread) ? ' annot-fresh' : ''}`, 'data-msg': thread.id }, meta(thread), text(thread)),
       ...repliesOf(thread.id).map((reply) =>
@@ -568,6 +574,24 @@ async function start(root) {
           { class: 'annot-actions' },
           h('button', { type: 'button', onclick: () => openReply(null) }, T.reply),
           h('button', { type: 'button', onclick: () => send({ action: 'resolve', id: thread.id, resolved: !thread.resolved }) }, thread.resolved ? T.reopen : T.resolve),
+          state.issues && !thread.issue && !thread.resolved
+            ? h(
+                'button',
+                {
+                  type: 'button',
+                  onclick: async (event) => {
+                    if (!confirm(T.confirmIssue)) return;
+                    event.currentTarget.disabled = true;
+                    if (!(await send({ action: 'issue', id: thread.id }))) return;
+                    // The note is now resolved: keep it in view, with its link.
+                    state.showResolved = true;
+                    resolvedBox.checked = true;
+                    focusThread(thread.id, false);
+                  },
+                },
+                T.openIssue,
+              )
+            : null,
           ...ownActions(thread, T.confirmDelete),
         ),
       );

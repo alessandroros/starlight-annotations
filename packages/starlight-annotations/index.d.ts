@@ -80,6 +80,8 @@ export type AnnotationStrings = {
   openIssue: string;
   confirmIssue: string;
   issue: string;
+  saving: string;
+  offline: string;
 };
 
 export interface StarlightAnnotationsOptions {

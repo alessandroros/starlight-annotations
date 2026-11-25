@@ -81,6 +81,8 @@ const en = {
   openIssue: 'Open issue',
   confirmIssue: 'Open a GitHub issue with this conversation? The note will be resolved.',
   issue: 'Issue',
+  saving: 'Saving…',
+  offline: 'Could not reach the notes service. Check your connection and try again.',
 };
 
 const it = {
@@ -163,6 +165,8 @@ const it = {
   openIssue: 'Apri issue',
   confirmIssue: 'Aprire una issue su GitHub con questa conversazione? La nota verrà risolta.',
   issue: 'Issue',
+  saving: 'Salvataggio…',
+  offline: 'Impossibile raggiungere il servizio delle note. Controlla la connessione e riprova.',
 };
 
 const de = {
@@ -245,6 +249,8 @@ const de = {
   openIssue: 'Issue öffnen',
   confirmIssue: 'Ein GitHub-Issue mit dieser Unterhaltung öffnen? Die Notiz wird als erledigt markiert.',
   issue: 'Issue',
+  saving: 'Wird gespeichert…',
+  offline: 'Der Notizdienst ist nicht erreichbar. Prüfe die Verbindung und versuche es erneut.',
 };
 
 const fr = {
@@ -327,6 +333,8 @@ const fr = {
   openIssue: 'Ouvrir une issue',
   confirmIssue: 'Ouvrir une issue GitHub avec cette conversation ? La note sera résolue.',
   issue: 'Issue',
+  saving: 'Enregistrement…',
+  offline: 'Impossible de joindre le service des notes. Vérifiez la connexion et réessayez.',
 };
 
 const es = {
@@ -409,6 +417,8 @@ const es = {
   openIssue: 'Abrir issue',
   confirmIssue: '¿Abrir una issue de GitHub con esta conversación? La nota se resolverá.',
   issue: 'Issue',
+  saving: 'Guardando…',
+  offline: 'No se puede acceder al servicio de notas. Comprueba la conexión e inténtalo de nuevo.',
 };
 
 export const builtIn = { en, it, de, fr, es };

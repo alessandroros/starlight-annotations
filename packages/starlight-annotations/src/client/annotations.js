@@ -237,6 +237,8 @@ async function start(root) {
       h('button', { type: 'button', class: 'annot-close', 'aria-label': T.close, onclick: () => setOpen(false) }, '×'),
     ),
     body,
+    // Read out by screen readers while a change is being saved.
+    h('div', { class: 'annot-sr-only', role: 'status' }),
   );
   ui.append(selectButton, toggle, drawer);
   document.body.append(ui);
@@ -271,9 +273,28 @@ async function start(root) {
     else CSS.highlights.delete('annot-active');
   }
 
+  // While a change is saved: a moving bar under the panel header, a spinner
+  // on the Notes button, and the panel's buttons paused so nothing is sent twice.
+  function setBusy(on) {
+    state.sending = on;
+    drawer.classList.toggle('annot-busy', on);
+    drawer.setAttribute('aria-busy', String(on));
+    toggle.classList.toggle('annot-busy', on);
+    drawer.querySelector('[role="status"]').textContent = on ? T.saving : '';
+  }
+
   async function send(change) {
+    if (state.sending) return null;
     state.error = '';
-    const data = await backend.send(page, change);
+    setBusy(true);
+    let data;
+    try {
+      data = await backend.send(page, change);
+    } catch {
+      data = { ok: false, error: T.offline };
+    } finally {
+      setBusy(false);
+    }
     if (!data.ok) {
       state.error = data.error;
       // Not signed in, or the session ended because access was removed.
@@ -385,6 +406,7 @@ async function start(root) {
     const busy = (on) => {
       save.disabled = on;
       area.disabled = on;
+      save.classList.toggle('annot-loading', on);
     };
     save.addEventListener('click', async () => {
       if (!area.value.trim()) return area.focus();

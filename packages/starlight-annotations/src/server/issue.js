@@ -21,18 +21,26 @@ export function issueContent({ page, thread, replies, url, user, profile }) {
   // not notify everyone in the thread. Mentions they wrote themselves stay.
   const person = (who) => `[${who.name || who.login}](${profile(who.login)})`;
   const quote = quoteOf(thread);
-  const message = (item) => `**${person(item.author)}** · ${when(item.created)}${item.edited ? ' (edited)' : ''}\n\n${item.body}`;
+  const message = (item) => `**${person(item.author)}** · ${when(item.created)}${item.edited ? ' (edited)' : ''}${item.body ? `\n\n${item.body}` : ''}`;
   const body = [
     quote ? quote.split('\n').map((line) => `> ${line}`).join('\n') : '**Whole page**',
+    ...(typeof thread.suggestion === 'string' ? [suggestedEdit(thread)] : []),
     `[Open the note on ${page}](${url})`,
     ...[thread, ...replies].map(message),
     `<sub>Opened by ${person(user)} from the review notes.</sub>`,
   ].join('\n\n---\n\n');
   return {
-    title: titleOf(thread.body) || `Note on ${page}`,
+    title: titleOf(thread.body) || `${typeof thread.suggestion === 'string' ? 'Suggested edit' : 'Note'} on ${page}`,
     body,
     labels: thread.kind && LABELS[thread.kind] ? [LABELS[thread.kind]] : [],
   };
+}
+
+// The whole passage and its replacement, as a diff block.
+function suggestedEdit(thread) {
+  const lines = (sign, value) => (value ? value.split('\n').map((line) => `${sign} ${line}`) : []);
+  const fence = '```';
+  return ['**Suggested edit**', '', `${fence}diff`, ...lines('-', thread.target.selector.exact.trim()), ...lines('+', thread.suggestion), fence].join('\n');
 }
 
 // The first line of a Markdown message, as plain text, cut at a word.

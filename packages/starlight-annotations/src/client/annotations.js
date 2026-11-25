@@ -12,7 +12,7 @@ import { anchor, buildIndex as indexText, skipSelector } from './anchoring.js';
 import { strings } from './i18n.js';
 import { isNew, knownPeople, markSeen, rememberPeople, seenTimes } from './memory.js';
 import { attachMentions } from './mentions.js';
-import { h, kindLabel, KINDS, loadMarkdown, quoteText, renderMarkdown } from './shared.js';
+import { h, kindLabel, KINDS, loadMarkdown, quoteText, renderMarkdown, suggestionView, suggests } from './shared.js';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 const SKIP = skipSelector(config.exclude);
@@ -173,6 +173,7 @@ async function start(root) {
     index: null,
     anchors: new Map(), // id -> { start, end, range }
     pending: null, // the selector of the selection being annotated
+    suggesting: false, // the pending note suggests an edit of its text
     showResolved: false,
     active: null,
     editing: null, // the id of the message being edited
@@ -196,12 +197,23 @@ async function start(root) {
     {
       type: 'button',
       class: 'annot-select-button',
-      hidden: true,
       onmousedown: (event) => event.preventDefault(),
-      onclick: () => compose(),
+      onclick: () => compose(false),
     },
     T.annotate,
   );
+  // Only a short passage keeps its whole text, so only it can be rewritten.
+  const suggestButton = h(
+    'button',
+    {
+      type: 'button',
+      class: 'annot-select-button',
+      onmousedown: (event) => event.preventDefault(),
+      onclick: () => compose(true),
+    },
+    T.suggestEdit,
+  );
+  const selectBar = h('div', { class: 'annot-select', hidden: true }, selectButton, suggestButton);
   const count = h('span', { class: 'annot-count' });
   const freshCount = h('span', { class: 'annot-fresh-count', hidden: true });
   const toggle = h('button', { type: 'button', class: 'annot-toggle', onclick: () => setOpen(!drawer.classList.contains('open')) }, T.notes, count, freshCount);
@@ -240,7 +252,7 @@ async function start(root) {
     // Read out by screen readers while a change is being saved.
     h('div', { class: 'annot-sr-only', role: 'status' }),
   );
-  ui.append(selectButton, toggle, drawer);
+  ui.append(selectBar, toggle, drawer);
   document.body.append(ui);
 
   function setOpen(open) {
@@ -344,10 +356,18 @@ async function start(root) {
   }
 
   // `kind` is given for the first note of a thread (null when it has none):
-  // the editor then lets the writer pick one. onSave gets (text, kind).
-  function editor(placeholder, onSave, onCancel, { initial = '', kind } = {}) {
-    const area = h('textarea', { rows: 4, placeholder, maxlength: 5000, 'aria-label': placeholder });
+  // the editor then lets the writer pick one. `suggestion` ({ original, value })
+  // adds a box for the text that should replace the quote; the message is then
+  // optional. onSave gets (text, kind, suggestion).
+  function editor(placeholder, onSave, onCancel, { initial = '', kind, suggestion } = {}) {
+    const area = h('textarea', { rows: suggestion ? 2 : 4, placeholder: suggestion ? T.suggestionWhy : placeholder, maxlength: 5000, 'aria-label': suggestion ? T.suggestionWhy : placeholder });
     area.value = initial;
+    const replacement = suggestion
+      ? h('textarea', { class: 'annot-suggestion-input', rows: 3, maxlength: 5000, 'aria-label': T.suggestionText })
+      : null;
+    if (replacement) replacement.value = suggestion.value;
+    const same = () => replacement && replacement.value.trim() === suggestion.original.trim();
+    const hint = h('p', { class: 'annot-suggestion-hint', role: 'alert', hidden: true }, T.suggestionSame);
     const kindSelect =
       kind === undefined
         ? null
@@ -406,13 +426,23 @@ async function start(root) {
     const busy = (on) => {
       save.disabled = on;
       area.disabled = on;
+      if (replacement) replacement.disabled = on;
       save.classList.toggle('annot-loading', on);
     };
     save.addEventListener('click', async () => {
-      if (!area.value.trim()) return area.focus();
+      if (same()) {
+        hint.hidden = false;
+        return replacement.focus();
+      }
+      if (!replacement && !area.value.trim()) return area.focus();
       busy(true);
-      const ok = await onSave(area.value, kindSelect ? kindSelect.value || null : undefined);
+      const ok = await onSave(area.value, kindSelect ? kindSelect.value || null : undefined, replacement ? replacement.value : undefined);
       if (!ok) busy(false);
+    });
+    replacement?.addEventListener('input', () => (hint.hidden = true));
+    replacement?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && (mac ? event.metaKey : event.ctrlKey)) return save.click();
+      if (event.key === 'Escape') onCancel();
     });
     area.addEventListener('keydown', (event) => {
       const command = mac ? event.metaKey : event.ctrlKey;
@@ -426,12 +456,19 @@ async function start(root) {
       }
     });
     queueMicrotask(() => {
+      if (replacement) {
+        replacement.focus();
+        replacement.select();
+        return;
+      }
       area.focus();
       area.setSelectionRange(area.value.length, area.value.length);
     });
     return h(
       'div',
       { class: 'annot-editor' },
+      replacement ? h('label', { class: 'annot-suggestion-label' }, T.suggestionText, replacement) : null,
+      hint,
       h('div', { class: 'annot-editor-bar' }, h('div', { class: 'annot-tabs', role: 'tablist' }, writeTab, previewTab), tools),
       area,
       mentions,
@@ -525,22 +562,35 @@ async function start(root) {
 
     // The message, or an editor on it while its author edits it.
     function text(item) {
-      if (state.editing !== item.id || !own(item)) return renderMarkdown(h('div', { class: 'annot-text annot-md' }), item.body);
+      if (state.editing !== item.id || !own(item))
+        // A suggested edit may come without a message.
+        return item.body ? renderMarkdown(h('div', { class: 'annot-text annot-md' }), item.body) : null;
       return editor(
         item.replyTo ? T.replyPlaceholder : T.placeholder,
-        async (value, kind) => {
+        async (value, kind, suggestion) => {
           const sameKind = kind === undefined || kind === (item.kind ?? null);
-          if (value.trim() === item.body && sameKind) {
+          const sameSuggestion = suggestion === undefined || suggestion.trim() === item.suggestion;
+          if (value.trim() === item.body && sameKind && sameSuggestion) {
             stopEditing();
             return true;
           }
-          const saved = await send({ action: 'edit', id: item.id, body: value, ...(kind === undefined ? {} : { kind }) });
+          const saved = await send({
+            action: 'edit',
+            id: item.id,
+            body: value,
+            ...(kind === undefined ? {} : { kind }),
+            ...(suggestion === undefined ? {} : { suggestion }),
+          });
           if (!saved) return false;
           stopEditing();
           return true;
         },
         stopEditing,
-        { initial: item.body, kind: item.replyTo ? undefined : (item.kind ?? null) },
+        {
+          initial: item.body,
+          kind: item.replyTo ? undefined : (item.kind ?? null),
+          suggestion: suggests(item) ? { original: item.target.selector.exact, value: item.suggestion } : undefined,
+        },
       );
     }
 
@@ -566,6 +616,8 @@ async function start(root) {
         quote(thread.target?.selector),
       ),
       ...(thread.kind ? [h('span', { class: `annot-kind annot-kind-${thread.kind}` }, kindLabel(thread.kind, T))] : []),
+      // While its author edits it, the suggestion is in the editor instead.
+      ...(suggests(thread) && state.editing !== thread.id ? [suggestionView(thread, T)] : []),
       ...(thread.resolved ? [h('span', { class: 'annot-badge' }, T.resolved)] : []),
       ...(thread.issue ? [issueLink(thread.issue)] : []),
       ...moveBox(),
@@ -641,23 +693,31 @@ async function start(root) {
         h(
           'section',
           { class: 'annot-new' },
-          h('strong', {}, T.newNote),
+          h('strong', {}, state.suggesting ? T.suggestion : T.newNote),
           quote(state.pending.type === 'Page' ? null : state.pending),
           state.user
             ? editor(
                 T.placeholder,
-                async (text, kind) => {
-                  const created = await send({ action: 'create', target: state.pending, body: text, ...(kind ? { kind } : {}) });
+                async (text, kind, suggestion) => {
+                  const created = await send({
+                    action: 'create',
+                    target: state.pending,
+                    body: text,
+                    ...(kind ? { kind } : {}),
+                    ...(suggestion === undefined ? {} : { suggestion }),
+                  });
                   if (!created) return false;
                   state.pending = null;
+                  state.suggesting = false;
                   focusThread(created.id, false);
                   return true;
                 },
                 () => {
                   state.pending = null;
+                  state.suggesting = false;
                   render();
                 },
-                { kind: null },
+                { kind: null, suggestion: state.suggesting ? { original: state.pending.exact, value: state.pending.exact } : undefined },
               )
             : loginLink(),
         ),
@@ -690,7 +750,10 @@ async function start(root) {
 
   function startMoving(id) {
     state.moving = id;
-    if (id) state.pending = null;
+    if (id) {
+      state.pending = null;
+      state.suggesting = false;
+    }
     render();
   }
 
@@ -729,28 +792,30 @@ async function start(root) {
   function onSelection() {
     selected = currentSelection();
     if (!selected) {
-      selectButton.hidden = true;
+      selectBar.hidden = true;
       return;
     }
     const rect = selected.range.getBoundingClientRect();
     selectButton.textContent = state.moving ? T.moveHere : T.annotate;
-    selectButton.hidden = false;
-    selectButton.style.top = `${window.scrollY + rect.bottom + 6}px`;
-    selectButton.style.left = `${Math.min(window.scrollX + rect.right - selectButton.offsetWidth, window.scrollX + document.documentElement.clientWidth - selectButton.offsetWidth - 8)}px`;
+    suggestButton.hidden = Boolean(state.moving) || !state.user || selected.selector.type !== 'TextQuoteSelector';
+    selectBar.hidden = false;
+    selectBar.style.top = `${window.scrollY + rect.bottom + 6}px`;
+    selectBar.style.left = `${Math.max(window.scrollX + 8, Math.min(window.scrollX + rect.right - selectBar.offsetWidth, window.scrollX + document.documentElement.clientWidth - selectBar.offsetWidth - 8))}px`;
   }
 
   function composePageNote() {
     loadMarkdown();
     state.pending = { type: 'Page' };
+    state.suggesting = false;
     render();
     setOpen(true);
   }
 
-  async function compose() {
+  async function compose(suggesting) {
     if (!selected) return;
     if (state.moving) {
       const id = state.moving;
-      selectButton.hidden = true;
+      selectBar.hidden = true;
       window.getSelection()?.removeAllRanges();
       const moved = await send({ action: 'anchor', id, target: selected.selector });
       if (!moved) return;
@@ -760,7 +825,8 @@ async function start(root) {
     }
     loadMarkdown();
     state.pending = selected.selector;
-    selectButton.hidden = true;
+    state.suggesting = suggesting && selected.selector.type === 'TextQuoteSelector';
+    selectBar.hidden = true;
     window.getSelection()?.removeAllRanges();
     render();
     setOpen(true);
@@ -772,7 +838,7 @@ async function start(root) {
     if (event.shiftKey || event.key === 'Shift') onSelection();
   });
   document.addEventListener('selectionchange', () => {
-    if (window.getSelection()?.isCollapsed) selectButton.hidden = true;
+    if (window.getSelection()?.isCollapsed) selectBar.hidden = true;
   });
 
   // A click on highlighted text opens its thread.

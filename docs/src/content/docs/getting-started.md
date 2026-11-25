@@ -43,6 +43,12 @@ The page reads every notes file, one request per annotated page, so it is meant 
 - **Kinds.** When writing a note, pick what it is: question, problem, proposal or decision. It shows as a coloured label, and the overview page filters by it, so "decision" notes become a record of what was agreed. A kind is optional and its author can change it later.
 - **Whole page.** **+ Note on this page**, at the top of the notes panel, writes a note about the page itself rather than a passage, for example "this page is missing the refund flow". These notes come first in the panel.
 
+## Suggested edits
+
+Select a few words and press **Suggest edit** instead of **Annotate**. Write the text as it should read, and why if you like. The note shows the change: removed words struck out in red, new words in green. Others reply as on any note, and **Copy new text** copies the replacement, to apply it to the source by hand. Its author can change the suggestion with **Edit**. The overview page lists them under **Type: Suggested edits**.
+
+A suggestion replaces the passage it quotes, so it works on selections shorter than `longQuote`, not on long passages or the whole page.
+
 ## What's new, and mentions
 
 - **New since your last visit.** Notes, replies and edits that others wrote after you last opened a page's notes are marked **New**, and the **Notes** button counts them. The overview page has a **New** filter. On a page you never opened, every note from others is new. Each browser remembers this for itself, in `localStorage`, next to the people it has seen: nothing reaches the server.

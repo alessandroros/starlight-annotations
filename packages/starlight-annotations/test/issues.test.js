@@ -144,6 +144,15 @@ describe('issueContent', () => {
     expect(long.title.length).toBeLessThanOrEqual(81);
     expect(long.title.endsWith('word…')).toBe(true);
   });
+  it('shows a suggested edit as a diff, and titles it when the note is empty', () => {
+    const doc = emptyDocument('p');
+    const target = { exact: 'the token\nexpires', prefix: '', suffix: '' };
+    const { annotation } = applyChange(doc, { action: 'create', target, body: '', suggestion: 'the token lasts' }, { login: 'a' });
+    const { title, body } = issueContent({ page: 'p', thread: annotation, replies: [], url: 'u', user: { login: 'a' }, profile });
+    expect(title).toBe('Suggested edit on p');
+    expect(body).toContain('**Suggested edit**\n\n```diff\n- the token\n- expires\n+ the token lasts\n```');
+    expect(body).not.toMatch(/UTC\n\n\n/);
+  });
 });
 
 describe('the issue change', () => {

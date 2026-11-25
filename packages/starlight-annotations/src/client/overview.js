@@ -5,7 +5,7 @@ import { anchor, buildIndex, skipSelector } from './anchoring.js';
 import { createBackend } from './backend.js';
 import { strings } from './i18n.js';
 import { isNew, rememberPeople, seenTimes } from './memory.js';
-import { h, kindLabel, KINDS, quoteText, renderMarkdown } from './shared.js';
+import { h, kindLabel, KINDS, quoteText, renderMarkdown, suggestionView, suggests } from './shared.js';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 const T = strings(document.documentElement.lang, config.translations);
@@ -53,7 +53,8 @@ async function start(container) {
     status: ['open', 'new', 'changed', 'resolved', 'all'].includes(params.get('status')) ? params.get('status') : 'open',
     author: params.get('author') ?? '',
     text: params.get('q') ?? '',
-    kind: KINDS.includes(params.get('kind')) || params.get('kind') === 'none' ? params.get('kind') : '',
+    // A type, "none", or "suggestion" for the suggested edits.
+    kind: KINDS.includes(params.get('kind')) || ['none', 'suggestion'].includes(params.get('kind')) ? params.get('kind') : '',
   };
 
   const changed = new Set(); // ids of open threads whose text is gone
@@ -94,6 +95,11 @@ async function start(container) {
         `${value === 'none' ? T.noKind : kindLabel(value, T)} (${threads.filter((entry) => (entry.thread.kind ?? 'none') === value).length})`,
       ),
     ),
+    h(
+      'option',
+      { value: 'suggestion', selected: state.kind === 'suggestion' },
+      `${T.suggestions} (${threads.filter((entry) => suggests(entry.thread)).length})`,
+    ),
   );
   const search = h('input', {
     type: 'search',
@@ -133,12 +139,12 @@ async function start(container) {
     if (state.status === 'resolved' && !thread.resolved) return false;
     if (state.status === 'changed' && (thread.resolved || !changed.has(thread.id))) return false;
     const messages = [thread, ...replies];
-    if (state.kind && (thread.kind ?? 'none') !== state.kind) return false;
+    if (state.kind === 'suggestion' ? !suggests(thread) : state.kind && (thread.kind ?? 'none') !== state.kind) return false;
     if (state.author && !messages.some((item) => item.author.login === state.author)) return false;
     const text = state.text.trim().toLowerCase();
     if (!text) return true;
     const quoted = thread.target?.selector ? quoteText(thread.target.selector) : '';
-    return [quoted, ...messages.map((item) => item.body)].some((value) => value.toLowerCase().includes(text));
+    return [quoted, thread.suggestion ?? '', ...messages.map((item) => item.body)].some((value) => value.toLowerCase().includes(text));
   }
 
   function card({ page, thread, replies, fresh }) {
@@ -151,6 +157,7 @@ async function start(container) {
         ? h('blockquote', { class: 'annot-quote' }, quoteText(thread.target.selector))
         : h('div', { class: 'annot-quote annot-whole-page' }, T.wholePage),
       thread.kind ? h('span', { class: `annot-kind annot-kind-${thread.kind}` }, kindLabel(thread.kind, T)) : null,
+      suggests(thread) ? suggestionView(thread, T) : null,
       h(
         'div',
         { class: 'annot-meta' },
@@ -164,7 +171,7 @@ async function start(container) {
         fresh ? h('span', { class: 'annot-badge annot-fresh-label' }, T.fresh) : null,
         !thread.resolved && changed.has(thread.id) ? h('span', { class: 'annot-badge annot-changed' }, T.textChanged) : null,
       ),
-      renderMarkdown(h('div', { class: 'annot-text annot-md' }), thread.body),
+      thread.body ? renderMarkdown(h('div', { class: 'annot-text annot-md' }), thread.body) : null,
       h(
         'div',
         { class: 'annot-overview-footer' },

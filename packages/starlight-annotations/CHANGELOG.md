@@ -1,5 +1,15 @@
 # starlight-annotations
 
+## 0.11.0
+
+### Minor Changes
+
+- d2cc295: The notes panel shows when it is saving: a bar slides under its header, **Save** shows a spinner, the count on the **Notes** button turns into one, and the panel's buttons pause so a change is not sent twice. Screen readers hear "Saving…". If the notes service cannot be reached, the panel says so instead of staying silent.
+
+### Patch Changes
+
+- d97c27f: Long quotes in issues and in Slack, Teams and email notifications are cut between words, as in the panel, instead of in the middle of one ("STA then hol … nd system leads").
+
 ## 0.10.0
 
 ### Minor Changes

@@ -69,6 +69,7 @@
   visibility: visible;
 }
 .annot-drawer header {
+  position: relative;
   display: flex;
   gap: 0.75rem;
   align-items: center;
@@ -539,4 +540,84 @@ button.annot-ref:hover {
   margin-top: 0.6rem;
   color: var(--sl-color-gray-3);
   font-size: var(--sl-text-xs);
+}
+
+/* Saving: a bar sliding under the header, the panel paused, spinners. */
+.annot-drawer.annot-busy header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--sl-color-accent), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: annot-slide 1s ease-in-out infinite;
+}
+.annot-drawer.annot-busy .annot-body {
+  opacity: 0.6;
+  pointer-events: none;
+  cursor: progress;
+  transition: opacity 0.15s;
+}
+@keyframes annot-slide {
+  from {
+    background-position: -40% 0;
+  }
+  to {
+    background-position: 140% 0;
+  }
+}
+.annot-toggle.annot-busy .annot-count,
+.annot-loading::before {
+  animation: annot-spin 0.7s linear infinite;
+}
+.annot-toggle.annot-busy .annot-count {
+  /* The count becomes a round spinner while saving. */
+  box-sizing: border-box;
+  width: 1.1em;
+  min-width: 0;
+  height: 1.1em;
+  padding: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  color: transparent;
+  border: 2px solid var(--sl-color-black);
+  border-top-color: transparent;
+  background: var(--sl-color-accent);
+}
+.annot-loading::before {
+  content: '';
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  margin-right: 0.4em;
+  vertical-align: -0.1em;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+}
+@keyframes annot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .annot-drawer.annot-busy header::after {
+    animation: none;
+    background-size: 100% 100%;
+  }
+  .annot-toggle.annot-busy .annot-count,
+  .annot-loading::before {
+    animation-duration: 2s;
+  }
+}
+.annot-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

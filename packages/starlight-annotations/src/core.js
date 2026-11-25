@@ -124,6 +124,8 @@ function kindOf(value) {
 //   { action: 'resolve', id, resolved }
 //   { action: 'edit', id, body, kind? }     the author changes their message
 //   { action: 'anchor', id, target }        a thread moves to another passage
+//   { action: 'issue', id, issue: { number, url } }  the thread became an issue
+//                                           (the handler fills `issue` after creating it)
 //   { action: 'delete', id }
 // It returns the annotation it touched, and a commit message.
 export function applyChange(doc, change, user, now = new Date()) {
@@ -197,6 +199,19 @@ export function applyChange(doc, change, user, now = new Date()) {
       annotation.movedBy = author;
       annotation.movedAt = created;
       return { annotation, message: `docs(annotations): move note on ${doc.page}` };
+    }
+    case 'issue': {
+      const annotation = find(change.id);
+      if (annotation.replyTo) throw new AnnotationError(400, 'Only a thread can become an issue.');
+      if (annotation.issue) throw new AnnotationError(409, 'This note already has an issue.');
+      const { number, url } = change.issue ?? {};
+      if (!Number.isInteger(number) || number < 1 || !/^https:\/\//.test(String(url))) throw new AnnotationError(400, 'Invalid issue.');
+      annotation.issue = { number, url };
+      // The conversation goes on in the issue: the note is done.
+      annotation.resolved = true;
+      annotation.resolvedBy = author;
+      annotation.resolvedAt = created;
+      return { annotation, message: `docs(annotations): open issue #${number} for a note on ${doc.page}` };
     }
     case 'delete': {
       const annotation = find(change.id);

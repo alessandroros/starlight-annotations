@@ -93,7 +93,7 @@ describe('handler with GitHub', () => {
   it('reads an empty page before the branch exists, signed out', async () => {
     const request = client(createAnnotationsHandler(github(options)));
     const data = await (await request('/_annotations/api?page=guides/demo')).json();
-    expect(data).toEqual({ annotations: [], user: null, mode: 'github', canSignIn: true });
+    expect(data).toEqual({ annotations: [], user: null, mode: 'github', canSignIn: true, issues: false });
   });
 
   it('signs in a collaborator and commits as them, creating the branch', async () => {

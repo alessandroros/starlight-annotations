@@ -13,9 +13,10 @@
 // Server credentials: a token, or `app` ({ appId, privateKey }) for a GitHub
 // App installed on `repo` (see github-app.js).
 
-import { filePath, pageFromPath } from '../core.js';
+import { AnnotationError, filePath, pageFromPath } from '../core.js';
 import { githubAppToken } from './github-app.js';
 import { gitStorage } from './git-storage.js';
+import { issueContent } from './issue.js';
 import { oauthAuth } from './oauth.js';
 import { decodeText, encodeText, required, restClient } from './util.js';
 
@@ -45,17 +46,20 @@ function serverToken({ repo, token, app }, where) {
  */
 export function github(options) {
   const token = options.token || options.app ? serverToken(options, 'github') : undefined;
-  const shared = { ...options, token, app: undefined };
+  // Issues in another repository need an installation token for that one.
+  const elsewhere = options.app && options.issues?.repo && options.issues.repo !== options.repo;
+  const issues = elsewhere ? { ...options.issues, token: githubAppToken({ ...options.app, repo: options.issues.repo }) } : options.issues;
+  const shared = { ...options, token, app: undefined, issues };
   return { storage: githubStorage(shared), auth: githubAuth(shared) };
 }
 
 /** @param {import('../../server').GitHubStorageOptions} options */
-export function githubStorage({ repo, token, app, branch = 'annotations', dir = 'annotations', commitMessage }) {
+export function githubStorage({ repo, token, app, branch = 'annotations', dir = 'annotations', commitMessage, issues }) {
   required({ repo }, 'githubStorage');
   const api = client(serverToken({ repo, token, app }, 'githubStorage'));
   const contentsPath = (page) => `/repos/${repo}/contents/${filePath(page, dir).split('/').map(encodeURIComponent).join('/')}`;
 
-  return gitStorage({
+  const storage = gitStorage({
     mode: 'github',
     commitMessage,
 
@@ -102,6 +106,31 @@ export function githubStorage({ repo, token, app, branch = 'annotations', dir = 
       if (!response.ok && response.status !== 422) throw new Error(`GitHub create branch ${response.status}: ${await response.text()}`);
     },
   });
+
+  // With `issues`, a thread can become a GitHub issue, in `repo` or in
+  // `issues.repo`. The server credential opens it: a GitHub App needs the
+  // repository permission "Issues: Read and write".
+  if (issues) {
+    const issueRepo = issues === true ? repo : issues.repo || repo;
+    const issueApi = issueRepo === repo ? api : client(issues.token ?? serverToken({ repo: issueRepo, token, app }, 'githubStorage issues'));
+    storage.createIssue = async (input) => {
+      const { title, body, labels } = issueContent({ ...input, profile: (login) => `https://github.com/${encodeURIComponent(login)}` });
+      const open = (withLabels) =>
+        issueApi.raw(`/repos/${issueRepo}/issues`, { method: 'POST', body: JSON.stringify({ title, body, ...(withLabels.length ? { labels: withLabels } : {}) }) });
+      let response = await open(labels);
+      // Labels the token may not create: open the issue without them.
+      if (response.status === 422 && labels.length) response = await open([]);
+      if (!response.ok) {
+        const detail = await response.text();
+        if (response.status === 403 || response.status === 404 || response.status === 410)
+          throw new AnnotationError(502, `Could not open an issue on ${issueRepo}: issues may be turned off there, or the server credential cannot write issues.`);
+        throw new Error(`GitHub create issue ${response.status}: ${detail}`);
+      }
+      const issue = await response.json();
+      return { number: issue.number, url: issue.html_url };
+    };
+  }
+  return storage;
 }
 
 /** @param {import('../../server').GitHubAuthOptions} options */

@@ -78,6 +78,9 @@ const en = {
   kindDecision: 'Decision',
   wholePage: 'Whole page',
   pageNote: 'Note on this page',
+  openIssue: 'Open issue',
+  confirmIssue: 'Open a GitHub issue with this conversation? The note will be resolved.',
+  issue: 'Issue',
 };
 
 const it = {
@@ -157,6 +160,9 @@ const it = {
   kindDecision: 'Decisione',
   wholePage: 'Tutta la pagina',
   pageNote: 'Nota sulla pagina',
+  openIssue: 'Apri issue',
+  confirmIssue: 'Aprire una issue su GitHub con questa conversazione? La nota verrà risolta.',
+  issue: 'Issue',
 };
 
 const de = {
@@ -236,6 +242,9 @@ const de = {
   kindDecision: 'Entscheidung',
   wholePage: 'Ganze Seite',
   pageNote: 'Notiz zur Seite',
+  openIssue: 'Issue öffnen',
+  confirmIssue: 'Ein GitHub-Issue mit dieser Unterhaltung öffnen? Die Notiz wird als erledigt markiert.',
+  issue: 'Issue',
 };
 
 const fr = {
@@ -315,6 +324,9 @@ const fr = {
   kindDecision: 'Décision',
   wholePage: 'Toute la page',
   pageNote: 'Note sur la page',
+  openIssue: 'Ouvrir une issue',
+  confirmIssue: 'Ouvrir une issue GitHub avec cette conversation ? La note sera résolue.',
+  issue: 'Issue',
 };
 
 const es = {
@@ -394,6 +406,9 @@ const es = {
   kindDecision: 'Decisión',
   wholePage: 'Toda la página',
   pageNote: 'Nota sobre la página',
+  openIssue: 'Abrir issue',
+  confirmIssue: '¿Abrir una issue de GitHub con esta conversación? La nota se resolverá.',
+  issue: 'Issue',
 };
 
 export const builtIn = { en, it, de, fr, es };

@@ -20,6 +20,14 @@ export interface Storage {
     mutate: (doc: AnnotationDocument) => { annotation: Record<string, unknown>; message: string },
     user: User,
   ): Promise<{ annotation: Record<string, unknown>; annotations: Record<string, unknown>[] }>;
+  /** Opens an issue for a thread. When present, the panel offers "Open issue". Optional. */
+  createIssue?(input: {
+    page: string;
+    thread: Record<string, any>;
+    replies: Record<string, any>[];
+    url: string;
+    user: User;
+  }): Promise<{ number: number; url: string }>;
 }
 
 export interface Auth {
@@ -38,7 +46,7 @@ export interface Auth {
   openContact?(sealed: string): Promise<string | null>;
 }
 
-export type AnnotationAction = 'create' | 'reply' | 'resolve' | 'reopen' | 'edit' | 'anchor' | 'delete';
+export type AnnotationAction = 'create' | 'reply' | 'resolve' | 'reopen' | 'edit' | 'anchor' | 'issue' | 'delete';
 
 /** What `onChange` receives after every saved change. */
 export interface AnnotationEvent {
@@ -110,6 +118,12 @@ export interface GitHubStorageOptions {
   dir?: string;
   /** Rewrite the commit message, e.g. to fit your commit convention. */
   commitMessage?: (message: string, page: string) => string;
+  /**
+   * Let readers turn a thread into a GitHub issue, which resolves the note.
+   * `true` opens issues in `repo`; `{ repo }` in another repository. The token
+   * or GitHub App needs Issues read/write there.
+   */
+  issues?: boolean | { repo?: string };
 }
 
 export interface GitHubAppOptions {

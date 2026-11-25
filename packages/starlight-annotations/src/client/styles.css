@@ -234,6 +234,12 @@
 .annot-kind-select {
   margin-left: auto;
 }
+.annot-issue {
+  align-self: flex-start;
+  margin-left: 0.4rem;
+  font-size: var(--sl-text-xs);
+  font-weight: 600;
+}
 .annot-badge.annot-changed {
   margin-left: 0.4rem;
   background: var(--sl-color-orange-low);

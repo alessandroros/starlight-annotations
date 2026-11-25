@@ -44,6 +44,7 @@ One file per page: `annotations/<page>.json`, where `<page>` is the path of the 
 - **Authors** are `{ login, name }`. With `emails: true` in the auth, notes and replies also carry `contact`: the writer's email, encrypted with the session secret. It is never sent to the browser.
 - **Resolved** threads have `resolved: true`, `resolvedBy` and `resolvedAt`.
 - **Edited** notes and replies have `edited`, the time of the last edit. Only the author can edit, and the panel shows "edited" next to the date.
+- **Threads that became an issue** have `issue: { number, url }`, and are resolved.
 - **Moved** threads have `movedBy` and `movedAt`: someone attached them to another passage, and `target` is the new one.
 
 ## When the text changes
